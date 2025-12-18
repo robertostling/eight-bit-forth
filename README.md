@@ -24,8 +24,9 @@ of about four seconds:
     code generator.
 
 Steps 2, 3 and 4 are technically the same thing: creating new Forth
-definitions. This type of flexibility and mixing of low- and
-high-level code is one of the strengths of Forth.
+definitions from the code in `kernel.fth`. This type of flexibility
+and mixing of low- and high-level code is one of the strengths of
+Forth.
 
 
 ## Running some demos
@@ -64,12 +65,16 @@ you get tired of the noise, you can silence it:
 To test the multitasking, you can define a word that turns out the
 volume briefly every third second, and run that in the background:
 
-    : ANNOY BEGIN
+    LOAD TASKS RUN
+
+    : ANNOY
       F VOLUME 10 JIFFYS
       0 VOLUME 3 SECONDS
-    AGAIN ;
+      ANNOY ;
 
     ' ANNOY LAUNCH
 
 While this is running, you can work with the editor and do other
-things in the foreground.
+things in the foreground. For instance, you can entertain yourself by
+looking at the most recently loaded source file in the editor. Use F5
+and F7 for page up and page down.
