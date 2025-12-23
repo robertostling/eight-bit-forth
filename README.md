@@ -281,7 +281,7 @@ constants using full colon definitions.
 
 ### Defining the core of Forth
 
-This whole project is a huge chicken-and-egg problem, so we need to define some core copiler words in assembler.
+This whole project is a huge chicken-and-egg problem, so we need to define some core compiler words in assembler.
 
     ( COMPILER WORDS )
     : IMMEDIATE [
@@ -294,7 +294,11 @@ This whole project is a huge chicken-and-egg problem, so we need to define some 
     : COMPILING [ ZSTATE LDA ZP  A> ] ;
     : COMPILER [ >A  ZSTATE STA ZP ] ;
 
-The words `SO` and its inverse `SKIP` are very simple flow control words, they are simply compiling conditional return instructions. This means that they can be used both as partial replacements for `IF/ELSE/THEN` and together with tail recursion to implement simple loops.
+The words `SO` and its inverse `SKIP` are very simple flow control
+words, they are simply compiling conditional return instructions. This
+means that they can be used both as partial replacements for
+`IF/ELSE/THEN` and together with tail recursion to implement simple
+loops.
 
     : SO PRE>A 1 BNE RTS ; IMMEDIATE
     : SKIP PRE>A 1 BEQ RTS ; IMMEDIATE
