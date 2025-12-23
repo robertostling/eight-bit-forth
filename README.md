@@ -305,8 +305,8 @@ loops.
 
 Below are definitions of core stack manipulation words. Later we will
 re-implement some of them with the ability of doing inlining, to avoid
-things like compiling a JSR instruction to `DROP`, which itself is a
-single-instruction words.
+things like compiling a JSR instruction to `DROP`, a
+single-instruction word.
 
     ( STACK OPERATIONS )
     : DUP [ TOS>A A> ] ;
@@ -382,8 +382,6 @@ definition of `MAKE` and further explanation.
 
     ( USED FOR HOT-SWAPPING, SEE MAKE ) 
     : MAKER HERE@W 0 3 +W JMP ; IMMEDIATE
-    ( HANDLE BACKWARD REFERENCES WITH
-      CONDITIONAL BRANCHING OPS )
     : KERNAL-EMIT [ >A  FF D2 JSR ] ;
     : EMIT MAKER KERNAL-EMIT ;
     : SPACE 20 EMIT ;
@@ -492,7 +490,8 @@ definition of `MAKE` and further explanation.
     : TARGET> HERE@ ;
 
 When implementing `THEN`, the tail call elimination can cause
-incorrect code, so we need to disable it.
+incorrect code in case `THEN` is immediately followed by a return, so
+we need to disable it.
 
     ( CONDITIONALS )
     : IF PRE>A 0 BEQ REF> ; IMMEDIATE
@@ -550,7 +549,7 @@ operation (if interpreting).
     : LIT R>W 1+W DUP>RW @ ;
     : LITW R>W 1+W DUPW 1+W >RW @W ;
 
-LETW ( 'WORD X A -- ) temporarily lets the value of the variable at
+`LETW ( 'WORD X A -- )` temporarily lets the value of the variable at
 address A be X while executing the word at a given address. The old
 value at A is temporarily stored on the return stack while WORD is
 executed.
@@ -571,11 +570,11 @@ executed.
 	>CODE ,2
       THEN ; IMMEDIATE
 
-Word defined with `MAKER` can have their implementation changed later,
-by overwriting a jump address. For instance, one could use `MAKE EMIT
-...` to change the behavior of `EMIT` to the code represented by
-`...`. Note that `MAKE` is state-smart and works both when compiling
-and interpreting.
+Words defined with `MAKER` can have their implementation changed
+later, by overwriting a jump address. For instance, one could use
+`MAKE EMIT ...` to change the behavior of `EMIT` to the code
+represented by `...`. Note that `MAKE` is state-smart and works both
+when compiling and interpreting.
 
 This can be restored to the original definition with `UNMAKE`.
 
