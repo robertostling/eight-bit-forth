@@ -1,7 +1,7 @@
 # eight-bit-forth
 
 This is (yet another) Forth environment for the Commodore 64 computer,
-with a few features that makes it one-of-a-kind:
+with a few features that together makes it one-of-a-kind system:
 
  * 8-bit data stack, with double-size operators for 16-bit arithmetic
  * minimalistic assembly language kernel with only 24 built-in words
@@ -10,11 +10,14 @@ with a few features that makes it one-of-a-kind:
  * nearly the whole system compiles itself at start
  * kernel supports source code compression
  * very fast compiler using hashed dictionaries
+ * simple editor capable of saving and loading from disk and tape
 
 When you run the executable, which also includes the compressed Forth
 source code of the system, the following takes place within the span
 of about four seconds:
 
+ 0. The kernel generates the AES S-box in memory, used for Forth
+    dictionary hashing.
  1. The kernel uncompresses the source code into memory, and starts
     compiling it.
  2. A simple assembler is compiled.
@@ -129,7 +132,8 @@ where XH:XL - 1 == YH:YL.
 ### Assembler
 
 The assembler is very simplistic, and at this point does not have any
-means of computing branches.
+means of computing branches. Below follows parts of `kernel.fth` with
+commentary.
 
     : ,2 , , ;
     : ,3 , , , ;
@@ -224,7 +228,7 @@ means of computing branches.
     : BITADR 2C ,3 ;
 
 
-### Beginning of a compiler
+### Core system
 
 The assembler words can be used as macros in Forth definitions, and at
 this point most of the words defined are meant to be used as
