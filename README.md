@@ -372,8 +372,9 @@ single-instruction words.
     : >FLAGS 0 2 +W ;
     : >LAST ;
 
-We use the 'MAKER` and `MAKE` words to enable changing word
-definitions during execution, without recompiling.
+We use the `MAKER` and `MAKE` words to enable changing word
+definitions during execution, without recompiling. See below for the
+definition of `MAKE` and further explanation.
 
     ( USED FOR HOT-SWAPPING, SEE MAKE ) 
     : MAKER HERE@W 0 3 +W JMP ; IMMEDIATE
@@ -544,6 +545,12 @@ operation (if interpreting).
       0 ZTEMP JMPI ] ;
     : LIT R>W 1+W DUP>RW @ ;
     : LITW R>W 1+W DUPW 1+W >RW @W ;
+
+LETW ( 'WORD X A -- ) temporarily lets the value of the variable at
+address A be X while executing the word at a given address. The old
+value at A is temporarily stored on the return stack while WORD is
+executed.
+
     : LETW
       DUPW DUP>RW @W >RW
       !W EXECUTE
@@ -568,6 +575,15 @@ and interpreting.
 
 This can be restored to the original definition with `UNMAKE`.
 
+The word `PATCH` can be used to change the definition of any word, not
+just those defined with `MAKER`, by overwriting its first three bytes
+with a jump instruction to the new address. This can not be undone,
+but is handy for testing, especially when the corresponding source
+code is still in RAM and can be recompiled.
+
+A more advanced word is MAKING, which can be used like:
+`' TYPE MAKING EMIT SLOW-EMIT`
+which would call `TYPE` with `EMIT` redefined as `SLOW-EMIT`.
 
     ( MAKE AND DYNAMIC RELINKING )
     : PATCH
@@ -664,6 +680,14 @@ This can be restored to the original definition with `UNMAKE`.
     : DOES>
       POSTPONE DODOES
       POSTPONE R>W POSTPONE 1+W ; IMMEDIATE
+
+The `CALL-PARENT` word performs a call to the return address of the
+word calling it, and can be used multiple times to execute the
+remainder of the calling word repeatedly. This makes it convenient to
+define loop constructions like `FOR-EACH` and `TIMES` below. As an
+example, you can use `TIMES` like this for a succinct loop:
+`: CHEER 4 TIMES ." HOORAY!" CR ;`
+
     ( ADDITIONAL LOOPING CONSTRUCTS )
     : CALL-PARENT [
       ZTEMP STXZP  TSX
