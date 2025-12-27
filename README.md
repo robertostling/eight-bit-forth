@@ -84,7 +84,7 @@ and run that in the background:
       ANNOY ;
 
     ' ANNOY LAUNCH
-    CONSTANT ANNOY-PID
+    VAR ANNOY-PID
 
 While this is running, you can work with the editor and do other
 things in the foreground. For instance, you can entertain yourself by
@@ -95,6 +95,17 @@ To kill the process, pass the process ID that was saved above to the
 word `kill`:
 
     ANNOY-PID KILL
+
+We use `VAR` rather than `CONSTANT` because it is shorter and such
+values can be updated with `TO`. What would normally be expressed like
+this, if both X and Y are defined using `VARIABLE`:
+
+    X @ TRANSFORM Y !
+
+could be expressed using (inside colon definitions) in the following
+way, assuming X and Y are both defined with `VAR`:
+
+    X TRANSFORM TO Y
 
 
 ## Technical highlights
@@ -235,8 +246,8 @@ this point most of the words defined are meant to be used as
 macros. We define some zero-page locations as constants, and some
 operations to transfer data to and from the top stack elements.
 
-Note that the word `CONSTANT` is not defined yet, so we define
-constants using full colon definitions.
+Note that the word `VAR` (typically named `CONSTANT`) is not defined
+yet, so we define constants using full colon definitions.
 
     : STACK> CE ;
     : STACK-1 CD FF ;
@@ -713,8 +724,8 @@ example, you can use `TIMES` like this for a succinct loop:
     ( DATA STRUCTURES )
     : VARIABLE CREATE 0 , ;
     : VARIABLEW VARIABLE  0 , ;
-    : CONSTANT CREATE , DOES> @ ;
-    : CONSTANTW CREATE ,2 DOES> @W ;
+    : VAR CREATE , DOES> @ ;
+    : VARW CREATE ,2 DOES> @W ;
     : ALLOT FOR 0 , NEXT ;
     : ARRAY
       CREATE ALLOT DOES> ROT 0 SWAP +W ;
