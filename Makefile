@@ -1,10 +1,11 @@
-forth.d64: forth.prg kernel.prg tests.prg tasks.prg vicsid.prg morse.prg
+forth.d64: forth.prg kernel.prg tests.prg tasks.prg vicsid.prg morse.prg pi.prg
 	c1541 -format "runtime,0" d64 forth.d64 -attach forth.d64 \
 		-write turbotape.prg turbotape \
 		-write forth.prg forth \
 		-write vicsid.prg vicsid \
 		-write morse.prg morse \
 		-write tasks.prg tasks \
+		-write pi.prg pi \
 		-write tests.prg tests \
 		-write kernel.prg kernel
 
@@ -23,6 +24,9 @@ vicsid.prg: vicsid.fth make_prg.py
 morse.prg: morse.fth make_prg.py
 	python3 make_prg.py morse.fth morse.prg
 
+pi.prg: pi.fth make_prg.py
+	python3 make_prg.py pi.fth pi.prg
+
 forth.prg: forth.asm kernel.fth
 	tr '\n' '\r' <kernel.fth >kernel-cr.fth
 	python3 compress.py kernel-cr.fth kernel-cr.compressed
@@ -36,4 +40,4 @@ noauto: forth.d64
 
 clean:
 	rm -f forth.d64 forth.prg kernel.prg tests.prg tasks.prg vicsid.prg \
-		morse.prg *-cr.fth *-cr.compressed
+		morse.prg pi.prg *-cr.fth *-cr.compressed
