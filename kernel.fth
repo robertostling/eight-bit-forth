@@ -1,6 +1,8 @@
 .( COMPILING ASSEMBLER )
 : ,2 , , ;
 : ,3 , , , ;
+: 0 00 ;
+: 1 01 ;
 ( USE WITH IMM )
 : ORA 0 ;
 : ANDA 20 ;

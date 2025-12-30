@@ -1033,10 +1033,13 @@ interpret:
     bcc +
     rts
 +
-    jsr hexbyte             ; is the word a valid number?
-    beq .non_numeral
+    jsr lookup
+    bcc .word_found         ; word in dictionary?
 
-    dex                     ; yes, push number to stack
+    jsr hexbyte             ; no, see if it is a number
+    beq unknown_word        ; if not, this is an error
+
+    dex                     ; if yes, push number to stack
     sta stack, x
 
     lda zp_state            ; interpreting? (then this is zero)
@@ -1045,9 +1048,25 @@ interpret:
     jsr code_literal        ; no, compile literal
     jmp interpret           ; and then we are done
 
-.non_numeral:
-    jsr lookup
-    bcs unknown_word
+;; Previously, we tested for numerals *first* for speed reasons.
+;; That is generally risky, and also does not allow for optimizing
+;; Using : 0 00 ; and : 1 01 ;
+
+;;     jsr hexbyte             ; is the word a valid number?
+;;     beq .non_numeral
+
+;;     dex                     ; yes, push number to stack
+;;     sta stack, x
+
+;;     lda zp_state            ; interpreting? (then this is zero)
+;;     beq interpret           ; yes, then we are done
+
+;;     jsr code_literal        ; no, compile literal
+;;     jmp interpret           ; and then we are done
+
+;; .non_numeral:
+;;     jsr lookup
+;;     bcs unknown_word
 
 .word_found:
     clc                     ; compute code address
