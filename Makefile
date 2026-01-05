@@ -1,11 +1,16 @@
 forth.prg: src/*.fth
-	cat src/core.fth src/kernal.fth src/hny.fth | tr '\n' '\r' >kernel-cr.fth
+	cat src/core.fth src/kernal.fth src/editor.fth \
+		| tr '\n' '\r' >kernel-cr.fth
 	python3 compress.py kernel-cr.fth kernel-cr.compressed
 	acme forth.asm
 
 upload: forth.prg
 	sudo ef3usb /dev/ttyACM0 s
 	sudo ef3usb /dev/ttyACM0 e forth.prg
+
+forth.d64: forth.prg
+	c1541 -format "runtime,0" d64 forth.d64 -attach forth.d64 \
+		-write forth.prg forth
 
 # forth.d64: forth.prg kernel.prg tests.prg tasks.prg vicsid.prg morse.prg pi.prg
 # 	c1541 -format "runtime,0" d64 forth.d64 -attach forth.d64 \
@@ -41,11 +46,11 @@ upload: forth.prg
 # 	python3 compress.py kernel-cr.fth kernel-cr.compressed
 # 	acme forth.asm
 
-# run: forth.prg forth.d64
-# 	x64 -8 forth.d64 -autostartprgmode 1 forth.prg 
+run: forth.prg forth.d64
+	x64 -8 forth.d64 -autostartprgmode 1 forth.prg 
 
-# noauto: forth.d64
-# 	x64 -8 forth.d64
+noauto: forth.d64
+	x64 -8 forth.d64
 
 clean:
 	rm -f forth.d64 forth.prg kernel.prg tests.prg tasks.prg vicsid.prg \
