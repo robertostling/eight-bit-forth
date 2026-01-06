@@ -1,3 +1,4 @@
+.( COMPILING)
 : ,2 , , ;
 : ,3 , , , ;
 : 0 00 ;
@@ -509,3 +510,10 @@
 : ARRAYW
   CREATE 2* ALLOT DOES>
   ROT 0 SWAP 2*W +W ;
+: << ( X N -- X<<N )
+  DUP 0= IF DROP EXIT THEN [
+  TARGET>
+  STACK> 1 ASL ADR,X
+  STACK DEC ADR,X
+  <REF BNE
+  ] DROP ;

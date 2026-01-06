@@ -41,7 +41,8 @@
     word_buffer_size        = $20       ; size of word buffer excluding count
 
     !address hwstack        = $0100     ; 256 bytes
-    !address kernel_source  = $7000
+    !address kernel_source  = $7000     ; Must be synced with make_prg.py
+                                        ; call in Makefile, and editor.fth!
     !address stack          = $ce00     ; 256 bytes
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
@@ -49,7 +50,7 @@
 
 !to "forth.prg", cbm
     * = $0801
-    !word basic_end, 2025
+    !word basic_end, 2026
     !byte $9e, $20
     !byte '0' + entry % 10000 / 1000
     !byte '0' + entry %  1000 /  100
