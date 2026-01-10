@@ -1,16 +1,9 @@
+BUILTIN=src/core.fth src/kernal.fth src/source.fth src/editor.fth src/init.fth
+
 # The sources specified here are compressed and included in main binary.
-forth.prg: src/*.fth
-	cat src/core.fth | tr '\n' '\r' >kernel-cr.fth
-	echo | tr '\n' '\r' >>kernel-cr.fth
-	cat src/kernal.fth | tr '\n' '\r' >>kernel-cr.fth
-	echo | tr '\n' '\r' >>kernel-cr.fth
-	cat src/source.fth | tr '\n' '\r' >>kernel-cr.fth
-	echo | tr '\n' '\r' >>kernel-cr.fth
-	cat src/editor.fth | tr '\n' '\r' >>kernel-cr.fth
-	echo | tr '\n' '\r' >>kernel-cr.fth
-	cat src/init.fth | tr '\n' '\r' >>kernel-cr.fth
-	echo | tr '\n' '\r' >>kernel-cr.fth
-	python3 compress.py kernel-cr.fth kernel-cr.compressed
+forth.prg: $(BUILTIN)
+	python3 scripts/merge_sources.py $(BUILTIN) >kernel-cr.fth
+	python3 scripts/compress.py kernel-cr.fth kernel-cr.compressed
 	acme forth.asm
 
 # Tested with Kung Fu Flash
@@ -27,7 +20,7 @@ forth.d64: forth.prg $(PRGS)
 
 # Address here must be synced with forth.asm
 $(PRGS): prg/%: src/%.fth
-	python3 make_prg.py 7000 $< $@
+	python3 scripts/make_prg.py 7000 $< $@
 
 run: forth.prg forth.d64
 	x64 -8 forth.d64 -autostartprgmode 1 forth.prg 
