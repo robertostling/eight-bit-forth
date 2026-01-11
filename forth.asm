@@ -724,7 +724,16 @@ code_error_a:
 
     +create_word_header "ERROR", 0
 code_error:                 ; to be overwritten
-    jmp -
+    lda #$30
+    clc
+    adc stack, x
+    jsr $ffd2
+    lda #'E'
+    jsr $ffd2
+    lda #'R'
+    jsr $ffd2
+    jsr $ffd2
+-   jmp -
 
 
     +create_word_header "KERNEL-SOURCE", 0
