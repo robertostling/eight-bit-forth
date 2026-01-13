@@ -3,14 +3,16 @@
 This is (yet another) Forth environment for the Commodore 64 computer,
 with a few features that together makes it one-of-a-kind system:
 
- * 8-bit data stack, with double-size operators for 16-bit arithmetic
- * minimalistic assembly language kernel with only 24 built-in words
+ * 8-bit data stack for minimal overhead
  * subroutine threading with some optimizations, including tail call
    elimination, and inlining for some words
- * nearly the whole system compiles itself at start
- * kernel supports source code compression
+ * minimalistic assembly language kernel with only 24 built-in words
+ * nearly the whole system compiles itself at start, from a compressed source
+   block attached to the kernel binary
  * very fast compiler using hashed dictionaries
  * simple editor capable of saving and loading from disk and tape
+ * you can change the code of the core system and recompile in a couple of
+   seconds -- while running!
 
 When you run the executable, which also includes the compressed Forth
 source code of the system, the following takes place within the span
@@ -399,124 +401,6 @@ definition of `MAKE` and further explanation.
     : MAKER HERE@W 0 3 +W JMP ; IMMEDIATE
     : KERNAL-EMIT [ >A  FF D2 JSR ] ;
     : EMIT MAKER KERNAL-EMIT ;
-    : SPACE 20 EMIT ;
-    : CR 0D EMIT ;
-    : HEXDIGIT [
-      TOS>A
-      0F ANDA IMM
-      0A CMP IMM
-      2 BCC
-      6 ADC IMM
-      30 ADC IMM
-      A>TOS ] ;
-    : .H
-      DUP 2/ 2/ 2/ 2/ HEXDIGIT EMIT
-      HEXDIGIT EMIT ;
-    : . .H SPACE ;
-    : .W SWAP .H .H SPACE ;
-    : = [
-      >A  STACK CMP ADR,X  6 BEQ
-      00 #A>TOS  RTS
-      FF #A>TOS ] ;
-    ( MEMORY MANIPULATION )
-    : S>TW NOS>A 1 A>T+  TOS>A 0 A>T+ ;
-    : @ [ S>TW  0 LDYIMM
-      T LDA (Y)
-      INX A>TOS ] ;
-    : @W [ S>TW  0 LDYIMM
-      T LDA (Y)  A>TOS  INY
-      T LDA (Y)  A>NOS ] ;
-    : ! [ S>TW  INX INX  0 LDYIMM
-      >A  T STA (Y) ] ;
-    : !W ! [ INY  >A  T STA (Y) ] ;
-    : +! [ S>TW  INX INX  0 LDYIMM
-      >A  CLC T ADC (Y)  T STA (Y) ] ;
-    : +!W +! [
-      INY >A  T ADC (Y)  T STA (Y) ] ;
-    ( ARITHMETIC )
-    : ALUOP ( OP - )
-      NOS>A  STACK> SWAP 0 SWAP ADR,X
-      INX A>TOS ;
-    : - [ SEC SBC ALUOP ] ;
-    ( : + [ CLC ADC ALUOP ] ; )
-    : OR [ ORA ALUOP ] ;
-    : XOR [ EORA ALUOP ] ;
-    : AND [ ANDA ALUOP ] ;
-    : ALUOPW ( OP - )
-      DUP
-      3 S>A
-      STACK> SWAP 0 SWAP ADR,X  3 A>S
-      4 S>A
-      STACK> SWAP 1 SWAP ADR,X  4 A>S
-      INX INX ;
-    : ORW [ ORA ALUOPW ] ;
-    : XORW [ EORA ALUOPW ] ;
-    : ANDW [ ANDA ALUOPW ] ;
-    : -W [ SEC SBC ALUOPW ] ;
-    ( : +W [ CLC ADC ALUOPW ] ; )
-    : 1+W [
-      STACK INC ADR,X
-      3 BNE
-      STACK> 1 INC ADR,X ] ;
-    ( COMPARISON OPERATORS )
-    : TRUE FF ;
-    : FALSE 0 ;
-    : COMPOP ( OPCODE -- )
-      TOS>A  , 6 ,
-      FALSE #A>TOS RTS  TRUE #A>TOS ;
-    : 0= [ F0 COMPOP ] ;
-    : NOT 0= ;
-    : 0< [ 30 COMPOP ] ;
-    : 0>= [ 10 COMPOP ] ;
-    : 0<> [ D0 COMPOP ] ;
-    : 0> DUP 0>= SWAP 0<> AND ;
-    : 0<= DUP 0< SWAP 0= OR ;
-    : < - 0< ;
-    : > - 0> ;
-    : <= - 0<= ;
-    : >= - 0>= ;
-    ( : = - 0= ; )
-    : <> - 0<> ;
-    : <W -W DROP 0< ;
-    : >=W -W DROP 0>= ;
-    : 0=W OR 0= ;
-    : 0<>W OR 0<> ;
-    : =W -W 0=W ;
-    : <>W -W 0<>W ;
-    : 0<W DROP 0< ;
-    ( WORD HEADER OPERATIONS )
-    : >NAME
-      DUPW 0 2 +W @ 1F AND  DUP >R
-      0 SWAP -W  R> ;
-    : TAIL;
-      ' >CODE JMP  OFF COMPILER ; IMMEDIATE
-    : JUMP ' >CODE JMP ;
-    : CALL ' >CODE JSR ;
-    ( BACKWARD REFERENCES, 8-BIT, AND
-      FORWARD REFERENCES, 16-BIT, BUT
-      BOTH GENERATE 8-BIT RELATIVE ADRS )
-    : <REF [
-      TOS>A  SEC 2 SBC IMM
-      SEC ZHERE SBC ZP  A>TOS ] ;
-    : REF> HERE@W ;
-    : <TARGET
-      DUPW  HERE@W SWAPW -W NIP -ROT
-      1-W ! ;
-    : TARGET> HERE@ ;
-
-When implementing `THEN`, the tail call elimination can cause
-incorrect code in case `THEN` is immediately followed by a return, so
-we need to disable it.
-
-    ( CONDITIONALS )
-    : IF PRE>A 0 BEQ REF> ; IMMEDIATE
-    : DISABLE-TAIL
-      0 ZOPTIMIZE @ 7F AND 0 ZOPTIMIZE ! ;
-    : THEN <TARGET DISABLE-TAIL
-      ; IMMEDIATE
-    : ELSE
-      CLC 0 BCC REF>  SWAPW
-      TAIL; THEN IMMEDIATE
 
 We implement `CASE` as a simple comparison and conditional jump. See
 the implementation of the editor below for an example of how it is
@@ -530,10 +414,8 @@ used.
 
 Here we re-define a few very short words to make them state-smart, and
 either inline the code (if compiling) or running the corresponding
-operation (if interpreting).
+operation (if interpreting). Some compile-only words are also always inlined.
 
-    ( INLINED WORDS )
-    : EXIT RTS ; IMMEDIATE
     : DROP
       COMPILING IF INX
       ELSE [ INX ] THEN ; IMMEDIATE
@@ -556,13 +438,6 @@ operation (if interpreting).
       PLA A>TOS TAY
       PLA PHA A>NOS
       TYA PHA ; IMMEDIATE
-    ( LITERALS/EXECUTION )
-    : EXECUTE [
-      >A  CLC 3 ADC IMM  0 A>T+
-      >A  0 ADC IMM  1 A>T+
-      0 ZTEMP JMPI ] ;
-    : LIT R>W 1+W DUP>RW @ ;
-    : LITW R>W 1+W DUPW 1+W >RW @W ;
 
 `LETW ( 'WORD X A -- )` temporarily lets the value of the variable at
 address A be X while executing the word at a given address. The old
@@ -573,17 +448,6 @@ executed.
       DUPW DUP>RW @W >RW
       !W EXECUTE
       R>W R>W !W ;
-    ( POSTPONE )
-    : DOCOMPILE
-      R>W 1+W DUPW 1+W >RW @W JSR ;
-    : POSTPONE
-      '
-      DUPW >FLAGS @ 0< IF
-	>CODE JSR
-      ELSE
-	LITW [ ' DOCOMPILE >CODE ,2 ] JSR
-	>CODE ,2
-      THEN ; IMMEDIATE
 
 Words defined with `MAKER` can have their implementation changed
 later, by overwriting a jump address. For instance, one could use
@@ -614,90 +478,11 @@ which would call `TYPE` with `EMIT` redefined as `SLOW-EMIT`.
     : >MAKE >CODE 1+W ;
     : MAKE
       COMPILING IF
-	POSTPONE DOMAKE  ' >MAKE ,2
+        POSTPONE DOMAKE  ' >MAKE ,2
       ELSE PATCH THEN ; IMMEDIATE
     : UNMAKE ' >MAKE
       DUPW 1+W 1+W SWAPW !W ;
     : MAKING ' >MAKE ' >CODE SWAPW LETW ;
-    ( LOOPS )
-    : BEGIN TARGET> ; IMMEDIATE
-    : AGAIN CLC <REF BCC ; IMMEDIATE
-    : UNTIL PRE>A <REF BEQ ; IMMEDIATE
-    : FOR PRE>A  0 BEQ REF>  PHA TARGET>
-      ; IMMEDIATE
-    : FORW NOS>A PHA TOS>A PHA INX INX
-      TARGET> ; IMMEDIATE
-    : NEXT
-      PLA  SEC 1 SBC IMM  PHA
-      <REF BNE
-      PLA
-      <TARGET ; IMMEDIATE
-    : NEXTW
-      PLA  SEC 1 SBC IMM A>T
-      PLA  0 SBC IMM  PHA  T ORA ZP  TAY
-      T>A PHA
-      TYA  <REF BNE
-      PLA PLA ; IMMEDIATE
-    : I PLA PHA A> ; IMMEDIATE
-    : IW PLA A> PLA A> PHA NOS>A PHA
-      ; IMMEDIATE
-    : DO
-      NOS>A PHA TOS>A PHA INX INX
-      HERE@
-      PLA A>T ( T = COUNT )
-      PLA  T CMP ZP
-      0 BEQ  HERE@W  PHA
-      T>A PHA ; IMMEDIATE
-    : +LOOP
-      PLA  CLC STACK ADC ADR,X INX  PHA
-      ROT CLC <REF BCC
-      TAIL; THEN IMMEDIATE
-    ( INPUT STREAM )
-    : CHAR
-      0 ZINPUT @W 0 ZEND @W =W IF 0 ELSE
-	0 ZINPUT @W @
-	0 1  0 ZINPUT +!W
-      THEN ;
-    : [CHAR]
-      CHAR POSTPONE LITERAL ; IMMEDIATE
-    : .(
-      CHAR DUP [CHAR] ) = IF
-	DROP CR EXIT
-      THEN EMIT TAIL; .( IMMEDIATE
-    : # CHAR DUP 0= SWAP 0D = OR
-      SKIP TAIL; # IMMEDIATE
-    ( STRINGS )
-    : S" HERE@W 0 ,
-      BEGIN
-	CHAR DUP [CHAR] " =
-	IF DROP EXIT THEN
-	,  DUPW 1 -ROT +!
-      AGAIN ;
-    : COUNT DUPW 1+W SWAPW  @ ;
-    : LITS
-      R>W 1+W DUPW DUPW @ 0 SWAP +W >RW ;
-    : DUMP
-      DUP 0= IF DROP DROPW EXIT THEN
-      -ROT DUPW @ . 1+W ROT  1- DUMP ;
-    : .S
-      SP@ STACK> SWAP
-      FC OVER - 3F AND DUMP ;
-    : " POSTPONE LITS S" DROPW ; IMMEDIATE
-    : ."
-      POSTPONE LITS S" DROPW
-      POSTPONE COUNT POSTPONE TYPE
-      ; IMMEDIATE
-    .( COMPILING COMPILER )
-    : LAST 0 ZLAST ;
-    : LITERALW POSTPONE LITW ,2 ; IMMEDIATE
-    : ['] ' POSTPONE LITERALW ; IMMEDIATE
-    ( DOES> )
-    : HERE>CODE LAST @W >CODE HERE!W ;
-    : DODOES
-      R>W 1+W  LAST @W >CODE 1+W !W ;
-    : DOES>
-      POSTPONE DODOES
-      POSTPONE R>W POSTPONE 1+W ; IMMEDIATE
 
 The `CALL-PARENT` word performs a call to the return address of the
 word calling it, and can be used multiple times to execute the
@@ -721,22 +506,3 @@ example, you can use `TIMES` like this for a succinct loop:
       ?DUP 0= IF R>DROPW EXIT THEN
       CALL-PARENT
       1- TIMES ;
-    ( DATA STRUCTURES )
-    : VARIABLE CREATE 0 , ;
-    : VARIABLEW VARIABLE  0 , ;
-    : VAR CREATE , DOES> @ ;
-    : VARW CREATE ,2 DOES> @W ;
-    : ALLOT FOR 0 , NEXT ;
-    : ARRAY
-      CREATE ALLOT DOES> ROT 0 SWAP +W ;
-    : ARRAYW
-      CREATE 2* ALLOT DOES>
-      ROT 0 SWAP 2*W +W ;
-    ( ADDITIONAL ARITHMETIC )
-    : << ( X N -- X<<N )
-      DUP 0= IF DROP EXIT THEN [
-      TARGET>
-      STACK> 1 ASL ADR,X
-      STACK DEC ADR,X
-      <REF BNE
-      ] DROP ;
