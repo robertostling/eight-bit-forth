@@ -180,6 +180,9 @@
 : 2*W [
   STACK ASL ADR,X
   STACK> 1 ROL ADR,X ] ;
+: 2/W [
+  STACK> 1 LSR ADR,X
+  STACK ROR ADR,X ] ;
 : DUPW OVER OVER ;
 : OVERW [ 4 S>A A>  4 S>A A> ] ;
 : SWAPW OVERW [
@@ -280,6 +283,7 @@
   STACK INC ADR,X
   3 BNE
   STACK> 1 INC ADR,X ] ;
+: 1C+W +W [ 1 BCS  RTS ] 1+W ;
 ( COMPARISON OPERATORS )
 : TRUE FF ;
 : FALSE 0 ;
