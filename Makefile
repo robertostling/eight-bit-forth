@@ -1,4 +1,4 @@
-BUILTIN=src/core.fth src/kernal.fth src/source.fth src/editor.fth src/init.fth
+BUILTIN=src/core.fth src/kernal.fth src/source.fth src/editor.fth src/ip.fth src/init.fth
 
 # The sources specified here are compressed and included in main binary.
 forth.prg: $(BUILTIN)
