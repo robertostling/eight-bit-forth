@@ -41,7 +41,7 @@
     word_buffer_size        = $20       ; size of word buffer excluding count
 
     !address hwstack        = $0100     ; 256 bytes
-    !address kernel_source  = $7000     ; Must be synced with make_prg.py
+    !address kernel_source  = $6000     ; Must be synced with make_prg.py
                                         ; call in Makefile, and editor.fth!
     !address stack          = $ce00     ; 256 bytes
     !address sbox           = $cd00     ; 256 bytes

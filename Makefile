@@ -20,7 +20,8 @@ forth.d64: forth.prg $(PRGS)
 
 # Address here must be synced with forth.asm
 $(PRGS): prg/%: src/%.fth
-	python3 scripts/make_prg.py 7000 $< $@
+	mkdir -p prg
+	python3 scripts/make_prg.py 6000 $< $@
 
 run: forth.prg forth.d64
 	x64 -8 forth.d64 -autostartprgmode 1 forth.prg 
