@@ -754,17 +754,102 @@ code_1minusw:
     rts
 
 
+code_compressed_block:
+    +create_word_header "COMPRESSED-BLOCK", 0
+    +push_literal >compressed_block
+    +push_literal <compressed_block
+    rts
+
+
+min_compress_symbol = $60
+
+    ; UNCOMPRESS2 ( W:SRC W:TRG -- W:TRG' )
+code_uncompress2:
+    +create_word_header "UNCOMPRESS2", 0
+    !zone {
+    ; zp_temp+0 = trg
+    lda stack+0, x
+    sta zp_temp+0
+    lda stack+1, x
+    sta zp_temp+1
+
+    ; zp_temp+2 = src
+    lda stack+2, x
+    sta zp_temp+2
+    lda stack+3, x
+    sta zp_temp+3
+
+    ; y = offset in src
+    ldy #0
+
+.decode_loop:
+    lda (zp_temp+2), y
+    cmp #$ff
+    beq .decode_finished
+    jsr .decode_symbol
+    iny
+    bne .decode_loop
+    ; TODO: should this be an error condition?
+.decode_finished:
+    inx
+    inx
+    lda zp_temp+0
+    sta stack+0, x
+    lda zp_temp+1
+    sta stack+1, x
+    rts
+.decode_symbol:
+    ; A = symbol to decode
+    ; Y = src offset
+    cmp #min_compress_symbol
+    bcc .decode_atom
+    sec
+    sbc #min_compress_symbol-2
+    ; A = offset to subtract from src offset
+    sta zp_temp+4
+    tya
+    pha
+    sec
+    sbc zp_temp+4
+    ; A = new src offset (first byte)
+    tay
+    lda (zp_temp+2), y
+    jsr .decode_symbol
+    iny
+    lda (zp_temp+2), y
+    jsr .decode_symbol
+    pla
+    tay
+    rts
+.decode_atom:
+    clc
+    adc #$1f
+    cmp #$1f
+    bne .decode_atom_petscii
+    ; newline, special case
+    lda #$0d
+.decode_atom_petscii:
+    ; TODO: SMC with direct STA here?
+    sty zp_temp+4
+    ldy #0
+    sta (zp_temp+0), y
+    ldy zp_temp+4
+    +incw zp_temp+0
+    rts
+    }
+
+
     ; UNCOMPRESS ( W:SRC W:TRG W:N -- W:TRG' )
     +create_word_header "UNCOMPRESS", 0
 code_uncompress:
     !zone {
-    ; zp_temp+0 = src
+    ; zp_temp+0 = trg
     lda stack+2, x
     sta zp_temp+0
     lda stack+3, x
     sta zp_temp+1
 
-    ; zp_temp+2 = trg
+    ; zp_temp+2 = src
     lda stack+4, x
     sta zp_temp+2
     lda stack+5, x
@@ -1391,6 +1476,11 @@ lookup:
     sta zp_header+0
     jmp .check_word
     }
+
+
+!align $ff, 0
+compressed_block:
+    !binary "block.compressed"
 
 word_buffer_len:
 !address word_buffer = *+1

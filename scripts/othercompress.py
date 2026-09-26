@@ -2,17 +2,43 @@ import sys
 from collections import Counter
 from operator import itemgetter
 
-PETSCII_MIN = 0x0d
-PETSCII_MAX = 0x5f
-# LEN_BITS = 3
-# MIN_LENGTH = 3
+PETSCII_MIN = 0x1f
+PETSCII_MAX = 0x7e
 sym_min = PETSCII_MAX + 1 - PETSCII_MIN
-max_offset = 0x100 - sym_min
+max_offset = 0xff - sym_min
+# max_offset = 0x40
+
+# with max: 16876 -> 9245
+# with 0x40: ... -> 10576
+
+def is_atom(x):
+    return x < sym_min
+
+def to_atom(x):
+    assert 0 <= x < sym_min
+    if x == 0:
+        return 0x0d
+    return PETSCII_MIN + x
+
+def from_atom(x):
+    assert (x == 0xd) or (0x20 <= x <= 0x7e)
+    if x == 0xd:
+        return 0
+    else:
+        return x - PETSCII_MIN
+
+def to_offset(x):
+    return x - sym_min
+
+def from_offset(x):
+    assert 0 <= x <= max_offset
+    return x + sym_min
+
 
 def decompress_at(data, i):
-    if data[i] < sym_min:
-        return [data[i] + PETSCII_MIN]
-    offset = data[i] - sym_min
+    if is_atom(data[i]):
+        return [to_atom(data[i])]
+    offset = to_offset(data[i])
     return decompress_at(data, i-(offset+2)) + decompress_at(data, i-(offset+1))
 
 def decompress(data):
@@ -25,7 +51,7 @@ def decompress(data):
 def compress(data):
     pos_str = [(1, 0), (1, 1)]
     i = 2
-    output = [data[0]-PETSCII_MIN, data[1]-PETSCII_MIN]
+    output = [from_atom(data[0]), from_atom(data[1])]
     while i < len(data):
         best_length = 1
         best_offset = None
@@ -40,14 +66,14 @@ def compress(data):
                     best_offset = offset
         pos_str.append((best_length, i))
         if best_length == 1:
-            output.append(data[i] - PETSCII_MIN)
+            output.append(from_atom(data[i]))
         else:
-            output.append(best_offset + sym_min)
+            output.append(from_offset(best_offset))
         i += best_length
     return bytes(output)
 
 def main():
-    input_path = sys.argv[1]
+    input_path, output_path = sys.argv[1:]
     with open(input_path, 'rb') as f:
         data = f.read()
     # print(min(data), max(data))
@@ -58,6 +84,11 @@ def main():
     print(f"-> {len(uncompressed)}")
     print(f"VERIFIED: {uncompressed == data}")
     print(str(uncompressed, 'utf-8').replace('\r', '\n'))
+
+    padded = compressed + bytes([0xff]*(0x100 - len(compressed)))
+    assert len(padded) == 0x100
+    with open(output_path, 'wb') as f:
+        f.write(padded)
 
     #if uncompressed == data:
     #    with open(output_path, 'wb') as f:
