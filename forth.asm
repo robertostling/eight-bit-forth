@@ -763,27 +763,35 @@ code_compressed_block:
 
 min_compress_symbol = $60
 
-    ; UNCOMPRESS2 ( W:SRC W:TRG -- W:TRG' )
+    ; UNCOMPRESS2 ( W:SRC W:TRG W:TRG-END -- W:TRG' )
+    ; If return value is equal to TRG-END there was an overflow
+    ; the final byte of the buffer is then corrupted
 code_uncompress2:
     +create_word_header "UNCOMPRESS2", 0
     !zone {
-    ; zp_temp+0 = trg
+    ; address of last byte of target buffer
     lda stack+0, x
-    sta zp_temp+0
-    lda stack+1, x
-    sta zp_temp+1
-
-    ; zp_temp+2 = src
-    lda stack+2, x
     sta zp_temp+2
-    lda stack+3, x
+    lda stack+1, x
     sta zp_temp+3
+
+    ; target address
+    lda stack+2, x
+    sta .store_address+0
+    lda stack+3, x
+    sta .store_address+1
+
+    ; zp_temp+0 = src
+    lda stack+4, x
+    sta zp_temp+0
+    lda stack+5, x
+    sta zp_temp+1
 
     ; y = offset in src
     ldy #0
 
 .decode_loop:
-    lda (zp_temp+2), y
+    lda (zp_temp+0), y
     cmp #$ff
     beq .decode_finished
     jsr .decode_symbol
@@ -793,9 +801,11 @@ code_uncompress2:
 .decode_finished:
     inx
     inx
-    lda zp_temp+0
+    inx
+    inx
+    lda .store_address+0
     sta stack+0, x
-    lda zp_temp+1
+    lda .store_address+1
     sta stack+1, x
     rts
 .decode_symbol:
@@ -813,10 +823,10 @@ code_uncompress2:
     sbc zp_temp+4
     ; A = new src offset (first byte)
     tay
-    lda (zp_temp+2), y
+    lda (zp_temp+0), y
     jsr .decode_symbol
     iny
-    lda (zp_temp+2), y
+    lda (zp_temp+0), y
     jsr .decode_symbol
     pla
     tay
@@ -829,12 +839,17 @@ code_uncompress2:
     ; newline, special case
     lda #$0d
 .decode_atom_petscii:
-    ; TODO: SMC with direct STA here?
-    sty zp_temp+4
-    ldy #0
-    sta (zp_temp+0), y
-    ldy zp_temp+4
-    +incw zp_temp+0
+.store_address = *+1
+    sta $ff00
+    lda .store_address+0
+    cmp zp_temp+2
+    bne .no_overflow
+    lda .store_address+1
+    cmp zp_temp+3
+    beq .overflow
+.no_overflow:
+    +incw .store_address
+.overflow:
     rts
     }
 
