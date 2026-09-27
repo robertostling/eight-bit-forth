@@ -11,6 +11,7 @@
 ;   3   code address
 ;
 
+    include_blocks = 1      ; include blocks.compressed in binary?
     include_kernel = 1      ; include kernel.fth in binary?
     small_code = 1          ; optimize for size?
 
@@ -46,7 +47,10 @@
     !address stack          = $ce00     ; 256 bytes
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
+    !address free_list      = $ca00     ; 256 bytes
+    last_free_page          = $c9
     stack_init              = $fc       ; initial value of stack pointers
+
 
 !to "forth.prg", cbm
     * = $0801
@@ -736,13 +740,13 @@ code_error:                 ; to be overwritten
 -   jmp -
 
 
-    +create_word_header "KERNEL-SOURCE", 0
-code_kernel_source:
-    jsr code_dovar
-kernel_source_struct:
-    !word kernel_source     ; start
-    !word 0                 ; end
-    !word kernel_source     ; current position
+;    +create_word_header "KERNEL-SOURCE", 0
+;code_kernel_source:
+;    jsr code_dovar
+;kernel_source_struct:
+;    !word kernel_source     ; start
+;    !word 0                 ; end
+;    !word kernel_source     ; current position
 
 
     +create_word_header "1-W", 0
@@ -754,11 +758,11 @@ code_1minusw:
     rts
 
 
-code_compressed_block:
-    +create_word_header "COMPRESSED-BLOCK", 0
-    +push_literal >compressed_block
-    +push_literal <compressed_block
-    rts
+;code_compressed_block:
+;    +create_word_header "COMPRESSED-BLOCK", 0
+;    +push_literal >compressed_block
+;    +push_literal <compressed_block
+;    rts
 
 
 min_compress_symbol = $60
@@ -853,6 +857,149 @@ code_uncompress2:
     rts
     }
 
+    ; FREE-PAGE ( PAGE -- ERR? )
+code_free_page:
+    !zone {
+    lda stack+0, x
+    tay
+    lda free_list, y
+    bne .error
+    lda free_list
+    sta free_list, y
+    sty free_list
+    lda #$ff
+    sta stack+0, x
+    rts
+.error:
+    lda #0
+    sta stack+0, x
+    rts
+    }
+
+
+!if include_blocks = 1 {
+init_ram_drive:
+    !zone {
+    ; allocate a page for copying buffer, store pointer at zp_temp+0
+    jsr code_alloc_page
+    lda stack, x
+    inx
+    sta zp_temp+1
+    lda #0
+    sta zp_temp+0
+
+    ; zp_temp+2 points to serialized block to load next
+    lda #<(builtin_blocks+2)
+    sta zp_temp+2
+    lda #>(builtin_blocks+2)
+    sta zp_temp+3
+
+.copy_block:
+    ; first erase buffer page
+    lda #$ff
+    ldy #0
+.erase_byte:
+    sta (zp_temp+0), y
+    iny
+    bne .erase_byte
+    
+    ; TODO: write mapping from the block number to this page, may not need to
+    ; use zp_temp+4:5
+
+    ; zp_temp+4 is the block number within the serialized data
+    ldy #0
+    lda (zp_temp+2), y
+    sta zp_temp+4
+    iny
+    lda (zp_temp+2), y
+    sta zp_temp+5
+    iny
+    lda (zp_temp+2), y
+    pha
+    tya
+    clc
+    adc zp_temp+2
+    sta zp_temp+2
+    bcc +
+    inc zp_temp+3
++
+    pla
+    tay
+    ; Y is now the number of bytes stored of this block
+.copy_block_byte:
+    dey
+    lda (zp_temp+2), y
+    sta (zp_temp+0), y
+    cpy #0
+    bne .copy_block_byte
+
+    tya
+    clc
+    adc zp_temp+2
+    sta zp_temp+2
+    bcc +
+    inc zp_temp+3
++
+
+    rts
+    }
+}
+
+
+init_memory:
+    !zone {
+    lda #2
+    ldy #0
+    ; by default, make everything unavailable
+.fill_unavailable:
+    sta free_list, y
+    iny
+    bne .fill_unavailable
+
+    clc
+    lda builtin_blocks+0
+    adc #<builtin_blocks
+    lda builtin_blocks+1
+    adc #>builtin_blocks
+    tay
+    iny
+    ; zp_temp+0 = first free page
+    sta zp_temp+0
+
+    ldy last_free_page
+    sta free_list
+.fill_free:
+    dey
+    tya
+    sta free_list+1, y
+    cpy zp_temp+0
+    bne .fill_free
+
+    lda #1
+    sta free_list, y
+    rts
+    }
+
+    ; ALLOC-PAGE ( -- PAGE )
+    ; page 0 indicates error
+    +create_word_header "ALLOC-PAGE", 0
+code_alloc_page:
+    !zone {
+    ldy free_list
+    ; value of 1 indicates end of free list, so empty
+    cpy #1
+    beq .out_of_memory
+    lda free_list, y
+    sta free_list
+    tya
+.done:
+    dex
+    sta stack+0, x
+    rts
+.out_of_memory:
+    lda #0
+    beq .done
+    }
 
     ; UNCOMPRESS ( W:SRC W:TRG W:N -- W:TRG' )
     +create_word_header "UNCOMPRESS", 0
@@ -1003,7 +1150,9 @@ entry:
     lda #$36
     sta 1                   ; disable BASIC ROM, keep KERNAL ROM
 
-    jsr compute_sbox
+    jsr compute_sbox        ; initialize AES S-box (used for hashing)
+
+    jsr init_memory         ; initialize memory page allocator
 
     ; both stacks have 4 reserved bytes at the top/bottom to decrease the risk
     ; of over/underflow going undetected
@@ -1062,80 +1211,80 @@ entry:
     bne .insert_next_word   ; until we reach a null pointer
     }
 
-!if include_kernel = 1 {
-    +push_literal >boot_text
-    +push_literal <boot_text
-    +push_literal <(boot_text_end-boot_text)
-    jsr code_type
-
-    +push_literal >compressed_code
-    +push_literal <compressed_code
-    +push_literal >kernel_source
-    +push_literal <kernel_source
-    +push_literal >(compressed_code_end-compressed_code)
-    +push_literal <(compressed_code_end-compressed_code)
-    jsr code_uncompress
-    lda stack+0, x
-    sta kernel_source_struct+2
-    sta zp_end+0
-    lda stack+1, x
-    sta kernel_source_struct+3
-    sta zp_end+1
-    inx
-    inx
-
-    lda #<kernel_source
-    sta zp_input+0
-    lda #>kernel_source
-    sta zp_input+1
-
-    jsr interpret
-    lda #2
-    jmp code_error_a
-
-boot_text:
-    !text "UNCOMPRESSING\r"
-boot_text_end:
-
-} else {
-    lda #1
-    ldx #8
-    ldy #0
-    jsr $ffba
-
-    lda #kernel_name_end-kernel_name
-    ldx #<kernel_name
-    ldy #>kernel_name
-    jsr $ffbd
-
-    lda #0
-    ldx #<kernel_source
-    ldy #>kernel_source
-    stx zp_input+0
-    sty zp_input+1
-    jsr $ffd5
-
-    inx
-    bne +
-    iny
-+
-
-    stx zp_end+0
-    sty zp_end+1
-
-    stx kernel_source_struct+2
-    sty kernel_source_struct+3
-
-    ldx #stack_init
-
-    jsr interpret
-    lda #2
-    jmp code_error_a
-
-kernel_name:
-    !text "KERNEL"
-kernel_name_end:
-}
+;!if include_kernel = 1 {
+;    +push_literal >boot_text
+;    +push_literal <boot_text
+;    +push_literal <(boot_text_end-boot_text)
+;    jsr code_type
+;
+;    +push_literal >compressed_code
+;    +push_literal <compressed_code
+;    +push_literal >kernel_source
+;    +push_literal <kernel_source
+;    +push_literal >(compressed_code_end-compressed_code)
+;    +push_literal <(compressed_code_end-compressed_code)
+;    jsr code_uncompress
+;    lda stack+0, x
+;    sta kernel_source_struct+2
+;    sta zp_end+0
+;    lda stack+1, x
+;    sta kernel_source_struct+3
+;    sta zp_end+1
+;    inx
+;    inx
+;
+;    lda #<kernel_source
+;    sta zp_input+0
+;    lda #>kernel_source
+;    sta zp_input+1
+;
+;    jsr interpret
+;    lda #2
+;    jmp code_error_a
+;
+;boot_text:
+;    !text "UNCOMPRESSING\r"
+;boot_text_end:
+;
+;} else {
+;    lda #1
+;    ldx #8
+;    ldy #0
+;    jsr $ffba
+;
+;    lda #kernel_name_end-kernel_name
+;    ldx #<kernel_name
+;    ldy #>kernel_name
+;    jsr $ffbd
+;
+;    lda #0
+;    ldx #<kernel_source
+;    ldy #>kernel_source
+;    stx zp_input+0
+;    sty zp_input+1
+;    jsr $ffd5
+;
+;    inx
+;    bne +
+;    iny
+;+
+;
+;    stx zp_end+0
+;    sty zp_end+1
+;
+;    stx kernel_source_struct+2
+;    sty kernel_source_struct+3
+;
+;    ldx #stack_init
+;
+;    jsr interpret
+;    lda #2
+;    jmp code_error_a
+;
+;kernel_name:
+;    !text "KERNEL"
+;kernel_name_end:
+;}
 
 interpret:
     !zone {
@@ -1492,10 +1641,9 @@ lookup:
     jmp .check_word
     }
 
-
-!align $ff, 0
-compressed_block:
-    !binary "block.compressed"
+;!align $ff, 0
+;compressed_block:
+;    !binary "block.compressed"
 
 word_buffer_len:
 !address word_buffer = *+1
@@ -1503,9 +1651,14 @@ word_buffer_len:
 
 !if include_kernel = 1 {
 ; NOTE: must compress before using either heap or word_buffer
-compressed_code:
-    !bin "kernel-cr.compressed"
-compressed_code_end:
+;compressed_code:
+;    !bin "kernel-cr.compressed"
+;compressed_code_end:
 }
 
+builtin_blocks:
+!if include_blocks = 1 {
+    ; asumed to start with 2 bytes indicating total size
+    !bin "blocks.compressed"
+}
 
