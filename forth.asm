@@ -48,7 +48,7 @@
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
     !address free_list      = $ca00     ; 256 bytes
-    last_free_page          = $c9
+    last_free_page          = $af       ; TODO: update! possible value: $c9
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -740,13 +740,13 @@ code_error:                 ; to be overwritten
 -   jmp -
 
 
-;    +create_word_header "KERNEL-SOURCE", 0
-;code_kernel_source:
-;    jsr code_dovar
-;kernel_source_struct:
-;    !word kernel_source     ; start
-;    !word 0                 ; end
-;    !word kernel_source     ; current position
+    +create_word_header "KERNEL-SOURCE", 0
+code_kernel_source:
+    jsr code_dovar
+kernel_source_struct:
+    !word kernel_source     ; start
+    !word 0                 ; end
+    !word kernel_source     ; current position
 
 
     +create_word_header "1-W", 0
@@ -758,11 +758,11 @@ code_1minusw:
     rts
 
 
-;code_compressed_block:
-;    +create_word_header "COMPRESSED-BLOCK", 0
-;    +push_literal >compressed_block
-;    +push_literal <compressed_block
-;    rts
+code_builtin_blocks:
+    +create_word_header "BUILTIN-BLOCKS", 0
+    +push_literal >builtin_blocks
+    +push_literal <builtin_blocks
+    rts
 
 
 min_compress_symbol = $60
@@ -902,7 +902,7 @@ init_ram_drive:
     sta (zp_temp+0), y
     iny
     bne .erase_byte
-    
+
     ; TODO: write mapping from the block number to this page, may not need to
     ; use zp_temp+4:5
 
@@ -956,18 +956,21 @@ init_memory:
     iny
     bne .fill_unavailable
 
-    clc
-    lda builtin_blocks+0
-    adc #<builtin_blocks
-    lda builtin_blocks+1
-    adc #>builtin_blocks
-    tay
-    iny
+    ; TODO: compute this properly once memory map is finalized
+    ;clc
+    ;lda builtin_blocks+0
+    ;adc #<builtin_blocks
+    ;lda builtin_blocks+1
+    ;adc #>builtin_blocks
+    ;tay
+    ;iny
+    ; TODO: test!
+    lda #$60
     ; zp_temp+0 = first free page
     sta zp_temp+0
 
-    ldy last_free_page
-    sta free_list
+    ldy #last_free_page
+    sty free_list
 .fill_free:
     dey
     tya
@@ -991,6 +994,9 @@ code_alloc_page:
     beq .out_of_memory
     lda free_list, y
     sta free_list
+    ; mark page as allocated
+    lda #0
+    sta free_list, y
     tya
 .done:
     dex
@@ -1211,80 +1217,80 @@ entry:
     bne .insert_next_word   ; until we reach a null pointer
     }
 
-;!if include_kernel = 1 {
-;    +push_literal >boot_text
-;    +push_literal <boot_text
-;    +push_literal <(boot_text_end-boot_text)
-;    jsr code_type
-;
-;    +push_literal >compressed_code
-;    +push_literal <compressed_code
-;    +push_literal >kernel_source
-;    +push_literal <kernel_source
-;    +push_literal >(compressed_code_end-compressed_code)
-;    +push_literal <(compressed_code_end-compressed_code)
-;    jsr code_uncompress
-;    lda stack+0, x
-;    sta kernel_source_struct+2
-;    sta zp_end+0
-;    lda stack+1, x
-;    sta kernel_source_struct+3
-;    sta zp_end+1
-;    inx
-;    inx
-;
-;    lda #<kernel_source
-;    sta zp_input+0
-;    lda #>kernel_source
-;    sta zp_input+1
-;
-;    jsr interpret
-;    lda #2
-;    jmp code_error_a
-;
-;boot_text:
-;    !text "UNCOMPRESSING\r"
-;boot_text_end:
-;
-;} else {
-;    lda #1
-;    ldx #8
-;    ldy #0
-;    jsr $ffba
-;
-;    lda #kernel_name_end-kernel_name
-;    ldx #<kernel_name
-;    ldy #>kernel_name
-;    jsr $ffbd
-;
-;    lda #0
-;    ldx #<kernel_source
-;    ldy #>kernel_source
-;    stx zp_input+0
-;    sty zp_input+1
-;    jsr $ffd5
-;
-;    inx
-;    bne +
-;    iny
-;+
-;
-;    stx zp_end+0
-;    sty zp_end+1
-;
-;    stx kernel_source_struct+2
-;    sty kernel_source_struct+3
-;
-;    ldx #stack_init
-;
-;    jsr interpret
-;    lda #2
-;    jmp code_error_a
-;
-;kernel_name:
-;    !text "KERNEL"
-;kernel_name_end:
-;}
+!if include_kernel = 1 {
+    +push_literal >boot_text
+    +push_literal <boot_text
+    +push_literal <(boot_text_end-boot_text)
+    jsr code_type
+
+    +push_literal >compressed_code
+    +push_literal <compressed_code
+    +push_literal >kernel_source
+    +push_literal <kernel_source
+    +push_literal >(compressed_code_end-compressed_code)
+    +push_literal <(compressed_code_end-compressed_code)
+    jsr code_uncompress
+    lda stack+0, x
+    sta kernel_source_struct+2
+    sta zp_end+0
+    lda stack+1, x
+    sta kernel_source_struct+3
+    sta zp_end+1
+    inx
+    inx
+
+    lda #<kernel_source
+    sta zp_input+0
+    lda #>kernel_source
+    sta zp_input+1
+
+    jsr interpret
+    lda #2
+    jmp code_error_a
+
+boot_text:
+    !text "UNCOMPRESSING\r"
+boot_text_end:
+
+} else {
+    lda #1
+    ldx #8
+    ldy #0
+    jsr $ffba
+
+    lda #kernel_name_end-kernel_name
+    ldx #<kernel_name
+    ldy #>kernel_name
+    jsr $ffbd
+
+    lda #0
+    ldx #<kernel_source
+    ldy #>kernel_source
+    stx zp_input+0
+    sty zp_input+1
+    jsr $ffd5
+
+    inx
+    bne +
+    iny
++
+
+    stx zp_end+0
+    sty zp_end+1
+
+    stx kernel_source_struct+2
+    sty kernel_source_struct+3
+
+    ldx #stack_init
+
+    jsr interpret
+    lda #2
+    jmp code_error_a
+
+kernel_name:
+    !text "KERNEL"
+kernel_name_end:
+}
 
 interpret:
     !zone {
@@ -1645,20 +1651,20 @@ lookup:
 ;compressed_block:
 ;    !binary "block.compressed"
 
+builtin_blocks:
+!if include_blocks = 1 {
+    ; asumed to start with 2 bytes indicating total size
+    !bin "blocks.compressed"
+}
+
 word_buffer_len:
 !address word_buffer = *+1
 !address heap_start = *+word_buffer_size+1
 
 !if include_kernel = 1 {
 ; NOTE: must compress before using either heap or word_buffer
-;compressed_code:
-;    !bin "kernel-cr.compressed"
-;compressed_code_end:
-}
-
-builtin_blocks:
-!if include_blocks = 1 {
-    ; asumed to start with 2 bytes indicating total size
-    !bin "blocks.compressed"
+compressed_code:
+    !bin "kernel-cr.compressed"
+compressed_code_end:
 }
 
