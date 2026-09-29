@@ -90,13 +90,16 @@ def main():
                         block_idx_bytes = block_idx.to_bytes(2, 'little')
                         block_size_bytes = len(compressed_block).to_bytes(
                                 1, 'little')
-                        compressed_block = (block_size_bytes
-                                            + block_idx_bytes
+                        compressed_block = (block_idx_bytes
+                                            + block_size_bytes
                                             + compressed_block)
                     outf.write(compressed_block)
                     block_idx += 1
             except ValueError as e:
                 print(f'Failure at block {block_idx}: {e}')
+
+        if not padded_format:
+            outf.write((0xffff).to_bytes(2, 'little'))
 
     print('Overall compressed size: '
           f'{100*sum(compressed_sizes)/sum(raw_sizes):.1f}')

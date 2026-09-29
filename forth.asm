@@ -48,7 +48,8 @@
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
     !address free_list      = $ca00     ; 256 bytes
-    last_free_page          = $af       ; TODO: update! possible value: $c9
+    !address text_buffer    = $c700     ; 768 bytes
+    last_free_page          = $af       ; TODO: update! possible value: $c6
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -758,10 +759,16 @@ code_1minusw:
     rts
 
 
-code_builtin_blocks:
     +create_word_header "BUILTIN-BLOCKS", 0
+code_builtin_blocks:
     +push_literal >builtin_blocks
     +push_literal <builtin_blocks
+    rts
+
+    +create_word_header "TEXT-BUFFER", 0
+code_text_buffer:
+    +push_literal >text_buffer
+    +push_literal <text_buffer
     rts
 
 
@@ -877,9 +884,32 @@ code_free_page:
     }
 
 
-!if include_blocks = 1 {
-init_ram_drive:
+    ; READ-RAM-DRIVE ( W:BLOCK-DATA W:RAM-DRIVE -- )
+    ;; RAM-DRIVE structure:
+    ;;   byte       N, number of blocks
+    ;;   N bytes    array of N page numbers, or 0 for unmapped
+    
+    +create_word_header "READ-RAM-DRIVE", 0
+read_ram_drive:
     !zone {
+    ;; zp_temp+4 points to RAM-DRIVE structure
+    lda stack+0, x
+    sta zp_temp+4
+    lda stack+1, x
+    sta zp_temp+5
+
+    ; zp_temp+2 points to serialized block to load next
+    lda stack+2, x
+    sta zp_temp+2
+    lda stack+3, x
+    sta zp_temp+3
+
+.create_block:
+    ldy #1
+    lda (zp_temp+2), y
+    cmp #$ff
+    beq .eof
+
     ; allocate a page for copying buffer, store pointer at zp_temp+0
     jsr code_alloc_page
     lda stack, x
@@ -887,12 +917,6 @@ init_ram_drive:
     sta zp_temp+1
     lda #0
     sta zp_temp+0
-
-    ; zp_temp+2 points to serialized block to load next
-    lda #<(builtin_blocks+2)
-    sta zp_temp+2
-    lda #>(builtin_blocks+2)
-    sta zp_temp+3
 
 .copy_block:
     ; first erase buffer page
@@ -903,29 +927,35 @@ init_ram_drive:
     iny
     bne .erase_byte
 
-    ; TODO: write mapping from the block number to this page, may not need to
-    ; use zp_temp+4:5
-
-    ; zp_temp+4 is the block number within the serialized data
     ldy #0
     lda (zp_temp+2), y
-    sta zp_temp+4
+    tay
+    ;; Y = low byte of block number
     iny
-    lda (zp_temp+2), y
-    sta zp_temp+5
-    iny
+    lda zp_temp+1
+    ;; A = newly allocated page
+    ;; insert into right page of RAM drive
+    ;; TODO: bounds check, also verify high byte = 0
+    sta (zp_temp+4), y
+
+    ldy #2
+    ;; load size of block in bytes (but Y = 0 means size is $100)
     lda (zp_temp+2), y
     pha
+
+    ;; add 2+1 = 3 to zp_temp+2 so it points to block data
     tya
-    clc
+    sec
     adc zp_temp+2
     sta zp_temp+2
     bcc +
     inc zp_temp+3
 +
+
     pla
     tay
-    ; Y is now the number of bytes stored of this block
+    pha
+    ;; Y is now the number of bytes stored of this block
 .copy_block_byte:
     dey
     lda (zp_temp+2), y
@@ -933,17 +963,27 @@ init_ram_drive:
     cpy #0
     bne .copy_block_byte
 
-    tya
+    pla
+    tay
+    ;; special case: size 0 means $100
+    bne +
+    inc zp_temp+3
++
     clc
     adc zp_temp+2
     sta zp_temp+2
     bcc +
     inc zp_temp+3
 +
+    jmp .create_block
 
+.eof:
+    inx
+    inx
+    inx
+    inx
     rts
     }
-}
 
 
 init_memory:
