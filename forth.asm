@@ -759,11 +759,86 @@ code_1minusw:
     rts
 
 
-    +create_word_header "BUILTIN-BLOCKS", 0
-code_builtin_blocks:
+    +create_word_header "RAM-DRIVE", 0
+    +push_literal >ram_drive
+    +push_literal <ram_drive
+    rts
+
+ram_drive:
+    !byte $80
+    !fill $80, 0
+
+    ;; TODO: remove after testing
++create_word_header "CREATE-RAM-DRIVE", 0
+    jsr create_ram_drive
+    jsr load_ram_drive
+    rts
+
+create_ram_drive:
+    ;; TODO: initialize ram_drive structure, decide size etc.
     +push_literal >builtin_blocks
     +push_literal <builtin_blocks
+    +push_literal >ram_drive
+    +push_literal <ram_drive
+    ;; lda ram_drive
+    ;; sta zp_temp+0
+    ;; lda ram_drive+1
+    ;; sta zp_temp+1
+    ;; ldy #1
+    ;; lda (zp_temp+0), y
+    ;; jsr push_a
+    ;; dey
+    ;; lda (zp_temp+0), y
+    ;; jsr push_a
+    jmp code_read_ram_drive
+
+
+load_ram_drive:
+    !zone {
+    ldy #0
+.load_block:
+    cpy ram_drive
+    beq .done
+    tya
+    pha
+    lda ram_drive+1, y
+    ;; 0 indicates block is not available in RAM drive
+    beq .skip_block
+    dex
+    dex
+    sta stack+1, x
+    lda #0
+    sta stack+0, x
+    jsr code_text_buffer
+    +push_literal >(text_buffer+$2ff)
+    +push_literal <(text_buffer+$2ff)
+    jsr code_uncompress2
+
+    dex
+    dex
+    lda stack+2, x
+    sta stack+0, x
+    lda stack+3, x
+    sta stack+1, x
+    lda #<text_buffer
+    sta stack+2, x
+    lda #>text_buffer
+    sta stack+3, x
+    jsr code_interpret
+.skip_block:
+    pla
+    tay
+    iny
+    jmp .load_block
+.done:
     rts
+    }
+    
+;;     +create_word_header "BUILTIN-BLOCKS", 0
+;; code_builtin_blocks:
+;;     +push_literal >builtin_blocks
+;;     +push_literal <builtin_blocks
+;;     rts
 
     +create_word_header "TEXT-BUFFER", 0
 code_text_buffer:
@@ -777,8 +852,8 @@ min_compress_symbol = $60
     ; UNCOMPRESS2 ( W:SRC W:TRG W:TRG-END -- W:TRG' )
     ; If return value is equal to TRG-END there was an overflow
     ; the final byte of the buffer is then corrupted
-code_uncompress2:
     +create_word_header "UNCOMPRESS2", 0
+code_uncompress2:
     !zone {
     ; address of last byte of target buffer
     lda stack+0, x
@@ -890,7 +965,7 @@ code_free_page:
     ;;   N bytes    array of N page numbers, or 0 for unmapped
     
     +create_word_header "READ-RAM-DRIVE", 0
-read_ram_drive:
+code_read_ram_drive:
     !zone {
     ;; zp_temp+4 points to RAM-DRIVE structure
     lda stack+0, x
