@@ -66,7 +66,8 @@
     !address hash_table     = $cb00     ; 512 bytes
     !address free_list      = $ca00     ; 256 bytes
     !address text_buffer    = $c700     ; 768 bytes
-    last_free_page          = $c6       ;
+    first_free_page         = $60       ; comfortably above the heap
+    last_free_page          = $c6       ; right below text_buffer
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -1085,16 +1086,7 @@ init_memory:
     iny
     bne .fill_unavailable
 
-    ; TODO: compute this properly once memory map is finalized
-    ;clc
-    ;lda builtin_blocks+0
-    ;adc #<builtin_blocks
-    ;lda builtin_blocks+1
-    ;adc #>builtin_blocks
-    ;tay
-    ;iny
-    ; TODO: test!
-    lda #>(end_of_prg + $ff)
+    lda #first_free_page
     ; zp_temp+0 = first free page
     sta zp_temp+0
 
