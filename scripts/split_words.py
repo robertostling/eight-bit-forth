@@ -5,7 +5,7 @@ from collections import Counter
 import othercompress
 
 PAD_BYTE = 0xff
-SUFFIX_WORD = '-->'
+SUFFIX = []  # ['-->']
 
 def make_block(lines):
     return othercompress.compress((('\r'.join(lines) + '\r').encode('ascii')))
@@ -69,10 +69,10 @@ def main():
         # TODO: ...only if padded_format is True
         for filename in sys.argv[1:]:
             try:
-                blocks = list(split_forth(filename, suffix=[SUFFIX_WORD]))
+                blocks = list(split_forth(filename, suffix=SUFFIX))
                 for i, block in enumerate(blocks):
                     is_last_block = (i == len(blocks)-1)
-                    if is_last_block:
+                    if is_last_block and SUFFIX:
                         # remove SUFFIX_WORD from last block
                         block = block[:-1]
                     print('-'*32 + f' {block_idx:04d} ' + '-'*32)

@@ -11,8 +11,25 @@
 ;   3   code address
 ;
 
+    ;; https://gforth.org/manual/Blocks.html
+    ;; TODO: implement traditional block buffers
+    ;; ~8 or so, fixed page range in regular RAM
+    ;; $d0-$df -- 12kB (48 pages) of shadow RAM used for RAM disk
+    ;; core + heap until ~$5000
+    ;; $50-$cf -- 32kB (128 pages) available for additional RAM disk
+    ;;
+    ;; 4-byte block numbers, MSB indicates device
+    ;;
+    ;; device structure:
+    ;;  - READ ( a block# -- err? )
+    ;;  - WRITE ( a block# -- err? )
+    ;;
+    ;; common entry point
+
+
     include_blocks = 1      ; include blocks.compressed in binary?
-    include_kernel = 1      ; include kernel.fth in binary?
+    include_kernel = 0      ; include code in binary?
+    load_kernel_file = 0    ; load code from disk file?
     small_code = 1          ; optimize for size?
 
     word_header_last    = 0
@@ -49,7 +66,7 @@
     !address hash_table     = $cb00     ; 512 bytes
     !address free_list      = $ca00     ; 256 bytes
     !address text_buffer    = $c700     ; 768 bytes
-    last_free_page          = $af       ; TODO: update! possible value: $c6
+    last_free_page          = $c6       ;
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -741,6 +758,7 @@ code_error:                 ; to be overwritten
 -   jmp -
 
 
+    !if include_kernel = 1 {
     +create_word_header "KERNEL-SOURCE", 0
 code_kernel_source:
     jsr code_dovar
@@ -748,7 +766,7 @@ kernel_source_struct:
     !word kernel_source     ; start
     !word 0                 ; end
     !word kernel_source     ; current position
-
+    }
 
     +create_word_header "1-W", 0
 code_1minusw:
@@ -758,7 +776,13 @@ code_1minusw:
 +   dec stack+0, x
     rts
 
+;;     +create_word_header "-->", 0
+;; code_rarrow:
+;;     lda #'.'
+;;     jsr $ffd2
+;;     rts
 
+    !if include_blocks = 1 {
     +create_word_header "RAM-DRIVE", 0
     +push_literal >ram_drive
     +push_literal <ram_drive
@@ -768,28 +792,16 @@ ram_drive:
     !byte $80
     !fill $80, 0
 
-    ;; TODO: remove after testing
-+create_word_header "CREATE-RAM-DRIVE", 0
-    jsr create_ram_drive
-    jsr load_ram_drive
-    rts
+;; +create_word_header "CREATE-RAM-DRIVE", 0
+;;     jsr create_ram_drive
+;;     jsr load_ram_drive
+;;     rts
 
 create_ram_drive:
-    ;; TODO: initialize ram_drive structure, decide size etc.
     +push_literal >builtin_blocks
     +push_literal <builtin_blocks
     +push_literal >ram_drive
     +push_literal <ram_drive
-    ;; lda ram_drive
-    ;; sta zp_temp+0
-    ;; lda ram_drive+1
-    ;; sta zp_temp+1
-    ;; ldy #1
-    ;; lda (zp_temp+0), y
-    ;; jsr push_a
-    ;; dey
-    ;; lda (zp_temp+0), y
-    ;; jsr push_a
     jmp code_read_ram_drive
 
 
@@ -812,7 +824,7 @@ load_ram_drive:
     jsr code_text_buffer
     +push_literal >(text_buffer+$2ff)
     +push_literal <(text_buffer+$2ff)
-    jsr code_uncompress2
+    jsr code_uncompress
 
     dex
     dex
@@ -825,6 +837,9 @@ load_ram_drive:
     lda #>text_buffer
     sta stack+3, x
     jsr code_interpret
+
+    lda #'.'
+    jsr $ffd2
 .skip_block:
     pla
     tay
@@ -846,14 +861,13 @@ code_text_buffer:
     +push_literal <text_buffer
     rts
 
-
 min_compress_symbol = $60
 
     ; UNCOMPRESS2 ( W:SRC W:TRG W:TRG-END -- W:TRG' )
     ; If return value is equal to TRG-END there was an overflow
     ; the final byte of the buffer is then corrupted
-    +create_word_header "UNCOMPRESS2", 0
-code_uncompress2:
+    +create_word_header "UNCOMPRESS", 0
+code_uncompress:
     !zone {
     ; address of last byte of target buffer
     lda stack+0, x
@@ -1059,7 +1073,7 @@ code_read_ram_drive:
     inx
     rts
     }
-
+    }
 
 init_memory:
     !zone {
@@ -1080,7 +1094,7 @@ init_memory:
     ;tay
     ;iny
     ; TODO: test!
-    lda #$60
+    lda #>(end_of_prg + $ff)
     ; zp_temp+0 = first free page
     sta zp_temp+0
 
@@ -1122,6 +1136,7 @@ code_alloc_page:
     beq .done
     }
 
+    !if include_kernel = 1 {
     ; UNCOMPRESS ( W:SRC W:TRG W:N -- W:TRG' )
     +create_word_header "UNCOMPRESS", 0
 code_uncompress:
@@ -1216,7 +1231,7 @@ code_uncompress:
     jsr code_1minusw
     jmp .decode_symbol
     }
-
+    }
 
     ; INTERPRET ( W:FROM W:TO -- )
     +create_word_header "INTERPRET", 0
@@ -1367,7 +1382,8 @@ boot_text:
     !text "UNCOMPRESSING\r"
 boot_text_end:
 
-} else {
+}
+!if load_kernel_file = 1 {
     lda #1
     ldx #8
     ldy #0
@@ -1405,6 +1421,13 @@ boot_text_end:
 kernel_name:
     !text "KERNEL"
 kernel_name_end:
+}
+!if include_blocks = 1 {
+    ldx #stack_init
+    jsr create_ram_drive
+    jsr load_ram_drive
+    lda #2
+    jmp code_error_a
 }
 
 interpret:
@@ -1766,15 +1789,15 @@ lookup:
 ;compressed_block:
 ;    !binary "block.compressed"
 
+word_buffer_len:
+!address word_buffer = *+1
+!address heap_start = *+word_buffer_size+1
+
 builtin_blocks:
 !if include_blocks = 1 {
     ; asumed to start with 2 bytes indicating total size
     !bin "blocks.compressed"
 }
-
-word_buffer_len:
-!address word_buffer = *+1
-!address heap_start = *+word_buffer_size+1
 
 !if include_kernel = 1 {
 ; NOTE: must compress before using either heap or word_buffer
@@ -1783,3 +1806,4 @@ compressed_code:
 compressed_code_end:
 }
 
+end_of_prg:
