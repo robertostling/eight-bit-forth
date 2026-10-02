@@ -66,8 +66,9 @@
     !address hash_table     = $cb00     ; 512 bytes
     !address free_list      = $ca00     ; 256 bytes
     !address text_buffer    = $c700     ; 768 bytes
+    !address ram_drive      = $c600     ; 256 BYTES
     first_free_page         = $60       ; comfortably above the heap
-    last_free_page          = $c6       ; right below text_buffer
+    last_free_page          = $c5       ; right below text_buffer
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -331,6 +332,17 @@ code_mover:
     rts
     }
 
+    ; MOVE-SHADOW ( W:SRC W:TRG W:N -- )
+    +create_word_header "<MOVE-SHADOW", 0
+code_lmove_shadow:
+    sei
+    lda #$30
+    sta 1
+    jsr code_lmove
+    lda #$36
+    sta 1
+    cli
+    rts
 
     ; <MOVE ( W:SRC W:TRG W:N -- )
     +create_word_header "<MOVE", 0
@@ -784,14 +796,14 @@ code_1minusw:
 ;;     rts
 
     !if include_blocks = 1 {
-    +create_word_header "RAM-DRIVE", 0
+    +create_word_header "RAMDRIVE-PAGE", 0
     +push_literal >ram_drive
-    +push_literal <ram_drive
     rts
 
-ram_drive:
-    !byte $80
-    !fill $80, 0
+    ;; !if include_blocks = 1 {
+    ;; +create_word_header "FREELIST-PAGE", 0
+    ;; +push_literal >free_list
+    ;; rts
 
 ;; +create_word_header "CREATE-RAM-DRIVE", 0
 ;;     jsr create_ram_drive
@@ -799,22 +811,26 @@ ram_drive:
 ;;     rts
 
 create_ram_drive:
+    !zone {
+    ldy #0
+    tya
+-   sta ram_drive, y
+    iny
+    bne -
     +push_literal >builtin_blocks
     +push_literal <builtin_blocks
     +push_literal >ram_drive
     +push_literal <ram_drive
     jmp code_read_ram_drive
-
+    }
 
 load_ram_drive:
     !zone {
     ldy #0
 .load_block:
-    cpy ram_drive
-    beq .done
     tya
     pha
-    lda ram_drive+1, y
+    lda ram_drive, y
     ;; 0 indicates block is not available in RAM drive
     beq .skip_block
     dex
@@ -845,7 +861,7 @@ load_ram_drive:
     pla
     tay
     iny
-    jmp .load_block
+    bne .load_block
 .done:
     rts
     }
@@ -974,11 +990,10 @@ code_free_page:
     }
 
 
+    ;; TODO: unless we really need to be able to create multiple
+    ;; RAM drives, consider removing the second argument to make
+    ;; this code simpler by using the hardocoded ramdrive address
     ; READ-RAM-DRIVE ( W:BLOCK-DATA W:RAM-DRIVE -- )
-    ;; RAM-DRIVE structure:
-    ;;   byte       N, number of blocks
-    ;;   N bytes    array of N page numbers, or 0 for unmapped
-    
     +create_word_header "READ-RAM-DRIVE", 0
 code_read_ram_drive:
     !zone {
@@ -1021,11 +1036,10 @@ code_read_ram_drive:
     lda (zp_temp+2), y
     tay
     ;; Y = low byte of block number
-    iny
     lda zp_temp+1
     ;; A = newly allocated page
     ;; insert into right page of RAM drive
-    ;; TODO: bounds check, also verify high byte = 0
+    ;; verify high byte = 0
     sta (zp_temp+4), y
 
     ldy #2
