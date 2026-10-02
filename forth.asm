@@ -971,6 +971,7 @@ code_uncompress:
     }
 
     ; FREE-PAGE ( PAGE -- ERR? )
+    +create_word_header "FREE-PAGE", 0
 code_free_page:
     !zone {
     lda stack+0, x
