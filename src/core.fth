@@ -468,6 +468,7 @@
     ,  DUPW 1 -ROT +!
   AGAIN ;
 : COUNT DUPW 1+W SWAPW  @ ;
+: COUNTW COUNT 0 SWAP ;
 : LITS
   R>W 1+W DUPW DUPW @ 0 SWAP +W >RW ;
 : DUMP
@@ -521,6 +522,7 @@
 : ARRAYW
   CREATE 2* ALLOT DOES>
   ROT 0 SWAP 2*W +W ;
+( MISC UTILITIES )
 : << ( X N -- X<<N )
   DUP 0= IF DROP EXIT THEN [
   TARGET>
@@ -528,3 +530,11 @@
   STACK DEC ADR,X
   <REF BNE
   ] DROP ;
+: !+ ( W:A C -- W:A+1 )
+  -ROT  DUPW >RW  !  R>W 1+W ;
+: !+W ( W:A W:X -- W:A+2 )
+  OVERW !W 1+W 1+W ;
+: DUMPW ( W:A W:N -- )
+  FORW DUPW @ .H SPACE 1+W NEXTW DROPW ;
+: TYPEW ( W:A W:N -- )
+  FORW DUPW @ EMIT 1+W NEXTW DROPW ;
