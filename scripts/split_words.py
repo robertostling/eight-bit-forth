@@ -97,6 +97,7 @@ def main():
                     block_idx += 1
             except ValueError as e:
                 print(f'Failure at block {block_idx}: {e}')
+                sys.exit(1)
 
         if not padded_format:
             outf.write((0xffff).to_bytes(2, 'little'))
