@@ -880,7 +880,7 @@ code_text_buffer:
 
 min_compress_symbol = $60
 
-    ; UNCOMPRESS2 ( W:SRC W:TRG W:TRG-END -- W:TRG' )
+    ; UNCOMPRESS ( W:SRC W:TRG W:TRG-END -- W:TRG' )
     ; If return value is equal to TRG-END there was an overflow
     ; the final byte of the buffer is then corrupted
     +create_word_header "UNCOMPRESS", 0
