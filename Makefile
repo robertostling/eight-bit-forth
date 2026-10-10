@@ -1,5 +1,5 @@
 # BUILTIN=src/core.fth src/kernal.fth src/source.fth src/editor.fth src/ip.fth src/init.fth
-BUILTIN=src/core.fth src/kernal.fth src/blocks.fth src/ip.fth src/init.fth
+BUILTIN=src/core.fth src/kernal.fth src/ip.fth src/blocks.fth src/init.fth
 
 blocks.compressed: scripts/split_words.py $(BUILTIN)
 	python3 scripts/split_words.py $(BUILTIN)
