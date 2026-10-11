@@ -132,5 +132,6 @@ STATUS
 73 = ASSERT 37 = ASSERT
 STATUS
 ( ------------------------------------ )
-
+: TEST-TYPE FOR-EACH EMIT ;
+: TEST-TIMES 8 TIMES DUP . ;
 
