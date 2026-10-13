@@ -880,6 +880,81 @@ code_text_buffer:
 
 min_compress_symbol = $60
 
+
+    ;; TODO: currently using dummy compression, fix this
+    ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
+    +create_word_header "COMPRESS", 0
+code_compress:
+    !zone {
+    ; temp+0 = input pointer
+    lda stack+3, x
+    sta zp_temp+0
+    lda stack+4, x
+    sta zp_temp+1
+
+    ; temp+2 = output page
+    lda stack+0, x
+    sta zp_temp+3
+    lda #0
+    sta zp_temp+2
+
+    ; output page will be padded with $ff
+    ; TODO: only fill what is necessary, before exiting
+    tay
+    lda #$ff
+.fill_page:
+    sta (zp_temp+2), y
+    iny
+    bne .fill_page
+    
+.next_byte:
+    lda zp_temp+0
+    cmp stack+1, x
+    bne .not_done
+    lda zp_temp+1
+    cmp stack+2, x
+    beq .success
+.not_done:
+    ldy #0
+    lda (zp_temp+0), y
+    cmp #$0d
+    beq .byte_cr
+    cmp #$20
+    bcc .failure
+    cmp #$7f
+    bcs .failure
+    sec
+    sbc #$1f
+
+.store_symbol:
+    sta (zp_temp+2),y
+
+    +incw zp_temp+0
+    inc zp_temp+2
+    ; output buffer is one page, must not overflow
+    beq .failure
+
+    jmp .next_byte
+
+.byte_cr:
+    lda #0
+    beq .store_symbol
+
+.failure:
+    lda #$ff
+    bne .done
+.success:
+    lda #0
+.done:
+    inx
+    inx
+    inx
+    inx
+    sta stack+0, x
+    rts
+    }
+
+
     ; UNCOMPRESS ( W:SRC W:TRG W:TRG-END -- W:TRG' )
     ; If return value is equal to TRG-END there was an overflow
     ; the final byte of the buffer is then corrupted

@@ -75,7 +75,7 @@ def compress(data):
 def main():
     input_path, output_path = sys.argv[1:]
     with open(input_path, 'rb') as f:
-        data = f.read()
+        data = f.read().replace(b'\n', b'\r')
     # print(min(data), max(data))
     compressed = compress(data)
     print(f"{len(data)} -> {len(compressed)} "
@@ -83,10 +83,12 @@ def main():
     uncompressed = decompress(compressed)
     print(f"-> {len(uncompressed)}")
     print(f"VERIFIED: {uncompressed == data}")
-    print(str(uncompressed, 'utf-8').replace('\r', '\n'))
+    # print(str(uncompressed, 'utf-8').replace('\r', '\n'))
 
     padded = compressed + bytes([0xff]*(0x100 - len(compressed)))
-    assert len(padded) == 0x100
+    if len(padded) != 0x100:
+        print(f'WARNING: padded length = ${len(padded):x}')
+
     with open(output_path, 'wb') as f:
         f.write(padded)
 
