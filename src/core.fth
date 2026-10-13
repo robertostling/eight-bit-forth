@@ -531,8 +531,10 @@
   STACK DEC ADR,X
   <REF BNE
   ] DROP ;
-: !+ ( W:A C -- W:A+1 )
-  -ROT  DUPW >RW  !  R>W 1+W ;
+: !OP ( W:A C -- W:A )
+  -ROT  DUPW >RW  !  R>W ;
+: !+  !OP 1+W ;
+: !-  !OP 1-W ;
 : !+W ( W:A W:X -- W:A+2 )
   OVERW !W 1+W 1+W ;
 : @+ ( W:A -- W:A+1 C )
@@ -546,3 +548,11 @@
   FORW @+ . NEXTW DROPW ;
 : TYPEW ( W:A W:N -- )
   FORW @+ EMIT NEXTW DROPW ;
+: DUP!+ ( W:A C -- W:A+1 C )
+  >R  DUPW R@ -ROT !  1+W R> ;
+: FILLW ( W:A C W:N -- )
+  FORW  DUP!+  NEXTW  DROP DROPW ;
+: !N ( X Y Z ... W:A N -- )
+  DUP >R  1- 0 SWAP +W  R>
+  FOR  DUP>RW ! R>W 1-W  NEXT
+  DROPW ;
