@@ -555,7 +555,10 @@
   >R  DUPW R@ -ROT !  1+W R> ;
 : FILLW ( W:A C W:N -- )
   FORW  DUP!+  NEXTW  DROP DROPW ;
-: !N ( X Y Z ... W:A N -- )
+: !NB ( X Y Z ... W:A N -- )
   DUP >R  1- 0 SWAP +W  R>
   FOR  DUP>RW ! R>W 1-W  NEXT
+  DROPW ;
+: !NL ( X Y Z ... W:A N -- )
+  FOR  DUP>RW ! R>W 1+W  NEXT
   DROPW ;
