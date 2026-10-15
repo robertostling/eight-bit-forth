@@ -1315,6 +1315,14 @@ code_uncompress:
     }
     }
 
+    ; C>HEX ( C -- N )
+    ; N is $ff on error, otherwise a value 0--15
+    +create_word_header "C>HEX", 0
+    lda stack, x
+    jsr hexdigit
+    sta stack, x
+    rts
+
     ; INTERPRET ( W:FROM W:TO -- )
     +create_word_header "INTERPRET", 0
 code_interpret:

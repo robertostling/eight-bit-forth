@@ -1,5 +1,8 @@
 # BUILTIN=src/core.fth src/kernal.fth src/source.fth src/editor.fth src/ip.fth src/init.fth
-BUILTIN=src/core.fth src/kernal.fth src/editor.fth src/ip.fth src/blocks.fth src/init.fth
+BUILTIN=src/core.fth src/kernal.fth src/editor.fth src/ip.fth src/blocks.fth init-private.fth
+
+init-private.fth: src/init.fth src/private.fth
+	cat src/private.fth src/init.fth >init-private.fth
 
 blocks.compressed: scripts/split_words.py $(BUILTIN)
 	python3 scripts/split_words.py $(BUILTIN)
@@ -34,4 +37,4 @@ noauto: forth.d64
 	x64 -8 forth.d64
 
 clean:
-	rm -f forth.d64 forth.prg prg/* *-cr.fth *-cr.compressed
+	rm -f forth.d64 forth.prg prg/* *-cr.fth *-cr.compressed blocks.compressed
