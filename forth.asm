@@ -28,8 +28,6 @@
 
 
     include_blocks = 1      ; include blocks.compressed in binary?
-    include_kernel = 0      ; include code in binary?
-    load_kernel_file = 0    ; load code from disk file?
     small_code = 1          ; optimize for size?
 
     word_header_last    = 0
@@ -655,86 +653,6 @@ code_type:
     }
 
 
-;    ; LOAD-FILE ( DRIVE W:NAME NAME-LEN W:START -- )
-;    +create_word_header "LOAD-FILE", 0
-;code_load:
-;    !zone {
-;    lda stack, x            ; temp+0 points to start address
-;    sta zp_temp+0
-;    inx
-;    lda stack, x
-;    sta zp_temp+1
-;    inx
-;
-;    lda stack, x            ; temp+4 is name length
-;    sta zp_temp+4
-;    inx
-;
-;    lda stack, x            ; temp+2 points to name (counted string)
-;    sta zp_temp+2
-;    inx
-;
-;    txa                     ; will return 2 items
-;    pha
-;
-;    lda stack, x
-;    sta zp_temp+3
-;    inx
-;
-;    lda stack, x            ; A = device
-;    tax
-;    lda #1
-;    ldy #0
-;    jsr $ffb1               ; SETLFS(logical=1, device, secondary=0)
-;
-;    lda zp_temp+4
-;    ldx zp_temp+2
-;    ldy zp_temp+3
-;    jsr $ffbd               ; SETNAM(W:NAME, NAME-LEN)
-;
-;    lda #0
-;    ldx zp_temp+0
-;    ldy zp_temp+1
-;    sty zp_firstblock
-;    jsr $ffd5               ; LOAD(load, W:START)
-;
-;    sta zp_temp+2
-;
-;    bcs .error
-;
-;    inx
-;    bne +
-;    iny
-;+
-;    stx zp_temp+0
-;    sty zp_temp+1
-;
-;    sty zp_lastblock
-;
-;    pla
-;    tax
-;
-;    lda zp_temp+1
-;    sta stack+1, x
-;    lda zp_temp+0
-;    sta stack, x
-;
-;    lda #0
-;    dex
-;    sta stack, x
-;
-;    rts
-;.error:
-;    pla
-;    tax
-;    lda zp_temp+2
-;    sta stack+1, x
-;    lda #$ff
-;    sta stack, x
-;    rts
-;    }
-
-
     +create_word_header "WORD", 0
 code_word:
     !zone {
@@ -770,17 +688,6 @@ code_error:                 ; to be overwritten
     jsr $ffd2
 -   jmp -
 
-
-    !if include_kernel = 1 {
-    +create_word_header "KERNEL-SOURCE", 0
-code_kernel_source:
-    jsr code_dovar
-kernel_source_struct:
-    !word kernel_source     ; start
-    !word 0                 ; end
-    !word kernel_source     ; current position
-    }
-
     +create_word_header "1-W", 0
 code_1minusw:
     lda stack+0, x
@@ -789,26 +696,11 @@ code_1minusw:
 +   dec stack+0, x
     rts
 
-;;     +create_word_header "-->", 0
-;; code_rarrow:
-;;     lda #'.'
-;;     jsr $ffd2
-;;     rts
 
     !if include_blocks = 1 {
     +create_word_header "RAMDRIVE-PAGE", 0
     +push_literal >ram_drive
     rts
-
-    ;; !if include_blocks = 1 {
-    ;; +create_word_header "FREELIST-PAGE", 0
-    ;; +push_literal >free_list
-    ;; rts
-
-;; +create_word_header "CREATE-RAM-DRIVE", 0
-;;     jsr create_ram_drive
-;;     jsr load_ram_drive
-;;     rts
 
 create_ram_drive:
     !zone {
@@ -865,12 +757,7 @@ load_ram_drive:
 .done:
     rts
     }
-    
-;;     +create_word_header "BUILTIN-BLOCKS", 0
-;; code_builtin_blocks:
-;;     +push_literal >builtin_blocks
-;;     +push_literal <builtin_blocks
-;;     rts
+
 
     +create_word_header "TEXT-BUFFER", 0
 code_text_buffer:
@@ -1218,103 +1105,6 @@ code_alloc_page:
     beq .done
     }
 
-    !if include_kernel = 1 {
-    ; UNCOMPRESS ( W:SRC W:TRG W:N -- W:TRG' )
-    +create_word_header "UNCOMPRESS", 0
-code_uncompress:
-    !zone {
-    ; zp_temp+0 = trg
-    lda stack+2, x
-    sta zp_temp+0
-    lda stack+3, x
-    sta zp_temp+1
-
-    ; zp_temp+2 = src
-    lda stack+4, x
-    sta zp_temp+2
-    lda stack+5, x
-    sta zp_temp+3
-
-.decode_symbol:
-    lda stack+1, x
-    bmi .no_data            ; safety check
-    ora stack+0, x
-    bne .has_data
-
-.no_data:
-    inx
-    inx
-    inx
-    inx
-    lda zp_temp+0
-    sta stack+0, x
-    lda zp_temp+1
-    sta stack+1, x
-    rts
-
-.has_data:
-    jsr code_1minusw
-
-    ldy #0
-    lda (zp_temp+2), y
-    +incw zp_temp+2
-    cmp #$53
-    bcs .sequence
-    ; decode single symbol
-    ; C = 0, add minimum PETSCII symbol
-    adc #$0d
-    sta (zp_temp+0), y
-    +incw zp_temp+0
-    jmp .decode_symbol
-
-.sequence:
-    ; decode sequence
-    ; A - $53 contains: OOOOOLLL
-    ; where LLL + 3 is the length of the sequence (range 3 to 10)
-    ; OOOOO are the 5 most significant bits of the offset
-    ; the following byte -- (zp_temp+2),y -- contains low 8 bits
-    ; of offset, note that zp_temp+2 has already been increased so Y = 0
-    sbc #$53
-    pha
-    and #7
-    clc
-    adc #3
-    sta zp_temp+6           ; zp_temp+6 = sequence length
-    pla
-    lsr
-    lsr
-    lsr
-    sta zp_temp+5
-    sec
-    lda zp_temp+0
-    sbc (zp_temp+2), y      ; subtract offset from target pointer
-    sta zp_temp+4           ; zp_temp+4 = sequence address
-    lda zp_temp+1
-    sbc zp_temp+5
-    sta zp_temp+5
-    ; now we need to copy zp_temp+6 bytes from zp_temp+4 to zp_temp+0
-    ; and then increase zp_temp+0
-    ldy #0
-.copy_byte:
-    lda (zp_temp+4), y
-    sta (zp_temp+0), y
-    iny
-    cpy zp_temp+6
-    bne .copy_byte
-
-    clc
-    tya
-    adc zp_temp+0
-    sta zp_temp+0
-    bcc +
-    inc zp_temp+1
-+
-    +incw zp_temp+2
-    jsr code_1minusw
-    jmp .decode_symbol
-    }
-    }
-
     ; C>HEX ( C -- N )
     ; N is $ff on error, otherwise a value 0--15
     +create_word_header "C>HEX", 0
@@ -1437,81 +1227,11 @@ entry:
     bne .insert_next_word   ; until we reach a null pointer
     }
 
-!if include_kernel = 1 {
     +push_literal >boot_text
     +push_literal <boot_text
     +push_literal <(boot_text_end-boot_text)
     jsr code_type
 
-    +push_literal >compressed_code
-    +push_literal <compressed_code
-    +push_literal >kernel_source
-    +push_literal <kernel_source
-    +push_literal >(compressed_code_end-compressed_code)
-    +push_literal <(compressed_code_end-compressed_code)
-    jsr code_uncompress
-    lda stack+0, x
-    sta kernel_source_struct+2
-    sta zp_end+0
-    lda stack+1, x
-    sta kernel_source_struct+3
-    sta zp_end+1
-    inx
-    inx
-
-    lda #<kernel_source
-    sta zp_input+0
-    lda #>kernel_source
-    sta zp_input+1
-
-    jsr interpret
-    lda #2
-    jmp code_error_a
-
-boot_text:
-    !text "UNCOMPRESSING\r"
-boot_text_end:
-
-}
-!if load_kernel_file = 1 {
-    lda #1
-    ldx #8
-    ldy #0
-    jsr $ffba
-
-    lda #kernel_name_end-kernel_name
-    ldx #<kernel_name
-    ldy #>kernel_name
-    jsr $ffbd
-
-    lda #0
-    ldx #<kernel_source
-    ldy #>kernel_source
-    stx zp_input+0
-    sty zp_input+1
-    jsr $ffd5
-
-    inx
-    bne +
-    iny
-+
-
-    stx zp_end+0
-    sty zp_end+1
-
-    stx kernel_source_struct+2
-    sty kernel_source_struct+3
-
-    ldx #stack_init
-
-    jsr interpret
-    lda #2
-    jmp code_error_a
-
-kernel_name:
-    !text "KERNEL"
-kernel_name_end:
-}
 !if include_blocks = 1 {
     ldx #stack_init
     jsr create_ram_drive
@@ -1875,9 +1595,10 @@ lookup:
     jmp .check_word
     }
 
-;!align $ff, 0
-;compressed_block:
-;    !binary "block.compressed"
+boot_text:
+    !byte $0e, $05, $93
+    !text "LOADING\r"
+boot_text_end:
 
 word_buffer_len:
 !address word_buffer = *+1
@@ -1887,13 +1608,6 @@ builtin_blocks:
 !if include_blocks = 1 {
     ; asumed to start with 2 bytes indicating total size
     !bin "blocks.compressed"
-}
-
-!if include_kernel = 1 {
-; NOTE: must compress before using either heap or word_buffer
-compressed_code:
-    !bin "kernel-cr.compressed"
-compressed_code_end:
 }
 
 end_of_prg:
