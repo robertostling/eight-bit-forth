@@ -1,42 +1,42 @@
-( PI GAME DEMO )
-: DATA"
-  CHAR DUP [CHAR] " = SKIP
-  DUP 21 >= IF , ELSE DROP THEN
-  DATA" ;
-CREATE PI-DIGITS DATA"
+( pi game demo )
+: data"
+  char dup [char] " = skip
+  dup 21 >= if , else drop then
+  data" ;
+create pi-digits data"
 314159265358979323846264338327950288
 419716939937510582097494459230781640
 628620899862803482534211706798214808
 651328230664709384460955058223172535"
-HERE@W PI-DIGITS -W VARW N-DIGITS
-VARIABLEW PI-POS
-PI-DIGITS PI-POS !W
-: PI-DIGIT PI-POS @W @ ;
-: JIFFY@W 0 A1 @W SWAP ;
-: JIFFYS 0 SWAP JIFFY@W +W
-  BEGIN JIFFY@W OVERW >=W UNTIL
-  DROPW ;
-: ADVANCE 0 1 PI-POS +!W ;
-VARIABLE SCORE
-: SCORE+!
-  SCORE +!
-  SCORE @ 0< IF 0 SCORE ! THEN
-  CURSOR@  0 0 CURSOR!
-  ." SCORE: " SCORE @ .
-  CURSOR! ;
-: PI-GAME
-  KEY DUP 20 = IF
-    5 EMIT PI-DIGIT EMIT 9A EMIT
-    ADVANCE
-    5 NEGATE SCORE+!
-  ELSE PI-DIGIT = IF
-    PI-DIGIT EMIT  ADVANCE
-    1 SCORE+!
-  ELSE
-    3 NEGATE SCORE+!
-    1 D0 20 +!
-    10 JIFFYS
-    FF D0 20 +!
-  THEN
-  THEN
-  PI-GAME ;
+here@w pi-digits -w varw n-digits
+variablew pi-pos
+pi-digits pi-pos !w
+: pi-digit pi-pos @w @ ;
+: jiffy@w 0 a1 @w swap ;
+: jiffys 0 swap jiffy@w +w
+  begin jiffy@w overw >=w until
+  dropw ;
+: advance 0 1 pi-pos +!w ;
+variable score
+: score+!
+  score +!
+  score @ 0< if 0 score ! then
+  cursor@  0 0 cursor!
+  ." score: " score @ .
+  cursor! ;
+: pi-game
+  key dup 20 = if
+    5 emit pi-digit emit 9a emit
+    advance
+    5 negate score+!
+  else pi-digit = if
+    pi-digit emit  advance
+    1 score+!
+  else
+    3 negate score+!
+    1 d0 20 +!
+    10 jiffys
+    ff d0 20 +!
+  then
+  then
+  pi-game ;

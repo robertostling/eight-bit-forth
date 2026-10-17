@@ -1,7 +1,7 @@
-: VICE-KEY KERNAL-KEY
-  DUP 23 = SO DROP 3B ;
-MAKE KEY VICE-KEY ;
-: SKIP-INTERPRET
-  0 ZEND @W  0 ZINPUT !W ;
-: CONFIRM? ." SURE? [Y/N]"
-  KEY DUP EMIT [CHAR] Y = ;
+: vice-key kernal-key
+  dup 23 = so drop 3b ;
+make key vice-key ;
+: skip-interpret
+  0 zend @w  0 zinput !w ;
+: confirm? ." sure? [y/n]"
+  key dup emit [char] y = ;

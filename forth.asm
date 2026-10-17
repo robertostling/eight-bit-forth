@@ -11,21 +11,6 @@
 ;   3   code address
 ;
 
-    ;; https://gforth.org/manual/Blocks.html
-    ;; TODO: implement traditional block buffers
-    ;; ~8 or so, fixed page range in regular RAM
-    ;; $d0-$df -- 12kB (48 pages) of shadow RAM used for RAM disk
-    ;; core + heap until ~$5000
-    ;; $50-$cf -- 32kB (128 pages) available for additional RAM disk
-    ;;
-    ;; 4-byte block numbers, MSB indicates device
-    ;;
-    ;; device structure:
-    ;;  - READ ( a block# -- err? )
-    ;;  - WRITE ( a block# -- err? )
-    ;;
-    ;; common entry point
-
 
     include_blocks = 1      ; include blocks.compressed in binary?
     small_code = 1          ; optimize for size?
@@ -219,7 +204,7 @@ code_dotparen:
     rts
 
 
-    +create_word_header "CHAR", 0
+    +create_word_header "char", 0
 code_char:
     jsr read_byte
     dex
@@ -249,7 +234,7 @@ code_lbracket:
 
 
     ; MOVE> ( W:SRC W:TRG W:N -- )
-    +create_word_header "MOVE>", 0
+    +create_word_header "move>", 0
 code_mover:
     !zone {
     clc
@@ -331,7 +316,7 @@ code_mover:
     }
 
     ; MOVE-SHADOW ( W:SRC W:TRG W:N -- )
-    +create_word_header "<MOVE-SHADOW", 0
+    +create_word_header "<move-shadow", 0
 code_lmove_shadow:
     sei
     lda #$30
@@ -343,7 +328,7 @@ code_lmove_shadow:
     rts
 
     ; <MOVE ( W:SRC W:TRG W:N -- )
-    +create_word_header "<MOVE", 0
+    +create_word_header "<move", 0
 code_lmove:
     !zone {
     lda stack+2, x
@@ -425,7 +410,7 @@ code_colon:
 +   jmp code_rbracket
 
 
-    +create_word_header "RTS", 0
+    +create_word_header "rts", 0
 code_rts:
     !zone {
     ; are we at a position where tail call elimination is possible?
@@ -500,7 +485,7 @@ run_tick:
     rts
 
 
-    +create_word_header "DOVAR", 0
+    +create_word_header "dovar", 0
 code_dovar:
     !zone {
     pla
@@ -516,7 +501,7 @@ code_dovar:
     }
 
 
-    +create_word_header "CREATE", 0
+    +create_word_header "create", 0
     ; Destroys: A, Y
 code_create:
     !zone {
@@ -582,7 +567,7 @@ code_create:
     }
 
 
-    +create_word_header "LIT", 0
+    +create_word_header "lit", 0
 code_dolit:
     stx zp_temp+2
     tsx
@@ -601,7 +586,7 @@ code_dolit:
     rts
 
 
-    +create_word_header "LITERAL", flag_immediate
+    +create_word_header "literal", flag_immediate
 code_literal:
 !if small_code = 1 {
     lda #$20                ; JSR
@@ -628,7 +613,7 @@ code_literal:
 }
 
 
-    +create_word_header "TYPE", 0
+    +create_word_header "type", 0
     ; Destroys: A, Y, temp[0..1]
 code_type:
     !zone {
@@ -653,7 +638,7 @@ code_type:
     }
 
 
-    +create_word_header "WORD", 0
+    +create_word_header "word", 0
 code_word:
     !zone {
     jsr read_word
@@ -675,7 +660,7 @@ code_error_a:
     sta stack, x
     jmp code_error
 
-    +create_word_header "ERROR", 0
+    +create_word_header "error", 0
 code_error:                 ; to be overwritten
     lda #$30
     clc
@@ -688,7 +673,7 @@ code_error:                 ; to be overwritten
     jsr $ffd2
 -   jmp -
 
-    +create_word_header "1-W", 0
+    +create_word_header "1-w", 0
 code_1minusw:
     lda stack+0, x
     bne +
@@ -698,7 +683,7 @@ code_1minusw:
 
 
     !if include_blocks = 1 {
-    +create_word_header "RAMDRIVE-PAGE", 0
+    +create_word_header "rd-page", 0
     +push_literal >ram_drive
     rts
 
@@ -713,7 +698,7 @@ create_ram_drive:
     +push_literal <builtin_blocks
     +push_literal >ram_drive
     +push_literal <ram_drive
-    jmp code_read_ram_drive
+    jmp code_rd_import
     }
 
 load_ram_drive:
@@ -759,7 +744,7 @@ load_ram_drive:
     }
 
 
-    +create_word_header "TEXT-BUFFER", 0
+    +create_word_header "text-buffer", 0
 code_text_buffer:
     +push_literal >text_buffer
     +push_literal <text_buffer
@@ -809,7 +794,7 @@ petscii_to_ascii:
 
     ;; TODO: currently using dummy compression, fix this
     ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
-    +create_word_header "COMPRESS", 0
+    +create_word_header "compress", 0
 code_compress:
     !zone {
     ; temp+0 = input pointer
@@ -845,14 +830,15 @@ code_compress:
     lda (zp_temp+0), y
     cmp #$0d
     beq .byte_cr
+
+    jsr petscii_to_ascii
+
     cmp #$20
     bcc .failure
     cmp #$7f
     bcs .failure
     sec
     sbc #$1f
-
-    jsr petscii_to_ascii
 .store_symbol:
     sta (zp_temp+2),y
 
@@ -885,7 +871,7 @@ code_compress:
     ; UNCOMPRESS ( W:SRC W:TRG W:TRG-END -- W:TRG' )
     ; If return value is equal to TRG-END there was an overflow
     ; the final byte of the buffer is then corrupted
-    +create_word_header "UNCOMPRESS", 0
+    +create_word_header "uncompress", 0
 code_uncompress:
     !zone {
     ; address of last byte of target buffer
@@ -975,7 +961,7 @@ code_uncompress:
     }
 
     ; FREE-PAGE ( PAGE -- ERR? )
-    +create_word_header "FREE-PAGE", 0
+    +create_word_header "free-page", 0
 code_free_page:
     !zone {
     lda stack+0, x
@@ -998,9 +984,9 @@ code_free_page:
     ;; TODO: unless we really need to be able to create multiple
     ;; RAM drives, consider removing the second argument to make
     ;; this code simpler by using the hardocoded ramdrive address
-    ; READ-RAM-DRIVE ( W:BLOCK-DATA W:RAM-DRIVE -- )
-    +create_word_header "READ-RAM-DRIVE", 0
-code_read_ram_drive:
+    ;; RD-IMPORT ( W:BLOCK-DATA W:RAM-DRIVE -- )
+    +create_word_header "rd-import", 0
+code_rd_import:
     !zone {
     ;; zp_temp+4 points to RAM-DRIVE structure
     lda stack+0, x
@@ -1125,7 +1111,7 @@ init_memory:
 
     ; ALLOC-PAGE ( -- PAGE )
     ; page 0 indicates error
-    +create_word_header "ALLOC-PAGE", 0
+    +create_word_header "alloc-page", 0
 code_alloc_page:
     !zone {
     ldy free_list
@@ -1149,14 +1135,14 @@ code_alloc_page:
 
     ; C>HEX ( C -- N )
     ; N is $ff on error, otherwise a value 0--15
-    +create_word_header "C>HEX", 0
+    +create_word_header "c>hex", 0
     lda stack, x
     jsr hexdigit
     sta stack, x
     rts
 
     ; INTERPRET ( W:FROM W:TO -- )
-    +create_word_header "INTERPRET", 0
+    +create_word_header "interpret", 0
 code_interpret:
     lda zp_input
     pha
@@ -1646,7 +1632,7 @@ lookup:
 
 boot_text:
     !byte $0e, $05, $93
-    !text "LOADING\r"
+    !pet "Loading"
 boot_text_end:
 
 word_buffer_len:

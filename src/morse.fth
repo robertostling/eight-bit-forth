@@ -1,38 +1,38 @@
-( MORSE CODE )
-VARIABLE DIT-LENGTH
-4 DIT-LENGTH !
-: BEEP ( LEN -- )
-  TRIANGLE GATE OR VOICE1 CONTROL
-  JIFFYS
-  TRIANGLE VOICE1 CONTROL ;
-: 3* DUP 2* + ;
-: DIT DIT-LENGTH @ BEEP
-  DIT-LENGTH @ JIFFYS ;
-: DAH DIT-LENGTH @ 3* BEEP
-  DIT-LENGTH @ JIFFYS ;
-: LETTER-SPACING
-  DIT-LENGTH @ 2* JIFFYS ;
-: WORD-SPACING
-  DIT-LENGTH @ 2* 2* JIFFYS ;
-: CW-CHAR ( X N -- )
-  FOR
-    DUP 0< IF DAH ELSE DIT THEN
-  2* NEXT DROP ;
-CREATE MORSE-TABLE
-6 CC ,2 ( , )
+( morse code )
+variable dit-length
+4 dit-length !
+: beep ( len -- )
+  triangle gate or voice1 control
+  jiffys
+  triangle voice1 control ;
+: 3* dup 2* + ;
+: dit dit-length @ beep
+  dit-length @ jiffys ;
+: dah dit-length @ 3* beep
+  dit-length @ jiffys ;
+: letter-spacing
+  dit-length @ 2* jiffys ;
+: word-spacing
+  dit-length @ 2* 2* jiffys ;
+: cw-char ( x n -- )
+  for
+    dup 0< if dah else dit then
+  2* next drop ;
+create morse-table
+6 cc ,2 ( , )
 0 0  ,2
 6 54 ,2 ( . )
 0 0  ,2
-5 F8 ,2 ( 0 )
+5 f8 ,2 ( 0 )
 5 78 ,2
 5 38 ,2
 5 18 ,2
 5 8  ,2
 5 0  ,2
 5 80 ,2
-5 C0 ,2
-5 E0 ,2
-5 F0 ,2 ( 9 )
+5 c0 ,2
+5 e0 ,2
+5 f0 ,2 ( 9 )
 0 0  ,2
 0 0  ,2
 0 0  ,2
@@ -40,69 +40,69 @@ CREATE MORSE-TABLE
 0 0  ,2
 6 30 ,2 ( ? )
 0 0  ,2
-2 40 ,2 ( A )
+2 40 ,2 ( a )
 4 80 ,2
-4 A0 ,2
+4 a0 ,2
 3 80 ,2
 1 0  ,2
-4 20 ,2 ( F )
-3 C0 ,2
+4 20 ,2 ( f )
+3 c0 ,2
 4 0  ,2
 2 0  ,2
 4 70 ,2
-3 A0 ,2 ( K )
+3 a0 ,2 ( k )
 4 40 ,2
-2 C0 ,2
+2 c0 ,2
 2 80 ,2
-3 E0 ,2
-4 60 ,2 ( P )
-4 D0 ,2
+3 e0 ,2
+4 60 ,2 ( p )
+4 d0 ,2
 3 40 ,2
 3 0  ,2
 1 80 ,2
-3 20 ,2 ( U )
+3 20 ,2 ( u )
 4 10 ,2
 3 60 ,2
 4 90 ,2
-4 B0 ,2
-4 C0 ,2 ( Z )
-: CW-EMIT ( C -- )
-  DUP 20 = IF
-    DROP WORD-SPACING EXIT
-  THEN
-  DUP [CHAR] , <  OVER [CHAR] Z >  OR
-  IF DROP EXIT THEN
-  [CHAR] , - 2*  0 SWAP MORSE-TABLE +W
-  @W SWAP
-  DUP 0= IF DROPW EXIT THEN
-  CW-CHAR LETTER-SPACING ;
-: BPF
-  BAND-PASS FILTERS
-  7 FILTER-CONTROL
-  8 00 FILTER-FREQUENCY ;
-: ENABLE-NOISE
-  20 00 VOICE3 FREQUENCY
-  1 1 VOICE3 DECAY-ATTACK
-  0 F VOICE3 RELEASE-SUSTAIN
-  NOISE GATE OR VOICE3 CONTROL ;
-: TURN-UP ( SPEED -- )
-  F 0 DO I VOLUME DUP JIFFYS 1 +LOOP
-  DROP ;
-: TURN-DOWN ( SPEED -- )
-  0 10 DO
-    I 1- VOLUME DUP JIFFYS
-  FF +LOOP DROP ;
-: ENABLE-MORSE
-  0 0 VOICE1 DECAY-ATTACK
-  0 F VOICE1 RELEASE-SUSTAIN ;
-: MORSE-TYPE ( W:ADR N -- )
-  FOR DUPW 1+W SWAPW @ CW-EMIT NEXT
-  DROPW ;
-: MORSE-DEMO
-  ENABLE-MORSE
-  ENABLE-NOISE
-  20 00 VOICE1 FREQUENCY
-  8 TURN-UP ( 0F VOLUME )
-  " CQ CQ DE SM0YSR K"
-  COUNT MORSE-TYPE ;
+4 b0 ,2
+4 c0 ,2 ( z )
+: cw-emit ( c -- )
+  dup 20 = if
+    drop word-spacing exit
+  then
+  dup [char] , <  over [char] z >  or
+  if drop exit then
+  [char] , - 2*  0 swap morse-table +w
+  @w swap
+  dup 0= if dropw exit then
+  cw-char letter-spacing ;
+: bpf
+  band-pass filters
+  7 filter-control
+  8 00 filter-frequency ;
+: enable-noise
+  20 00 voice3 frequency
+  1 1 voice3 decay-attack
+  0 f voice3 release-sustain
+  noise gate or voice3 control ;
+: turn-up ( speed -- )
+  f 0 do i volume dup jiffys 1 +loop
+  drop ;
+: turn-down ( speed -- )
+  0 10 do
+    i 1- volume dup jiffys
+  ff +loop drop ;
+: enable-morse
+  0 0 voice1 decay-attack
+  0 f voice1 release-sustain ;
+: morse-type ( w:adr n -- )
+  for dupw 1+w swapw @ cw-emit next
+  dropw ;
+: morse-demo
+  enable-morse
+  enable-noise
+  20 00 voice1 frequency
+  8 turn-up ( 0f volume )
+  " cq cq de sm0ysr k"
+  count morse-type ;
 

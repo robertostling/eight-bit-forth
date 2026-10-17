@@ -1,137 +1,137 @@
-.( TESTING UTILITIES )
-: .CONTEXT
-  0 ZINPUT @W 0 40 -W 40 TYPE
+.( testing utilities )
+: .context
+  0 zinput @w 0 40 -w 40 type
   ." ****"
-  0 ZINPUT @W 40 TYPE ;
-: ASSERT ( F -- ) SKIP .CONTEXT
-  CR ." ASSERTION FAILED!"
-  STATUS ;
+  0 zinput @w 40 type ;
+: assert ( f -- ) skip .context
+  cr ." assertion failed!"
+  status ;
 ( ------------------------------------ )
-.( TESTING MEMORY MANIPULATION )
-73 STACK> 10 !
-88 STACK> 11 !
-STACK> 10 @  73 = ASSERT
-STACK> 11 @  88 = ASSERT
-STACK> 10 @W  73 = ASSERT 88 = ASSERT
-AB BA STACK> 10 !W
-STACK> 10 @W  BA = ASSERT AB = ASSERT
-11 22 STACK> 10 +!W
-STACK> 10 @W  DC = ASSERT BC = ASSERT
-11 STACK> 10 +!
-STACK> 10 @  ED = ASSERT
-STATUS
+.( testing memory manipulation )
+73 stack> 10 !
+88 stack> 11 !
+stack> 10 @  73 = assert
+stack> 11 @  88 = assert
+stack> 10 @w  73 = assert 88 = assert
+ab ba stack> 10 !w
+stack> 10 @w  ba = assert ab = assert
+11 22 stack> 10 +!w
+stack> 10 @w  dc = assert bc = assert
+11 stack> 10 +!
+stack> 10 @  ed = assert
+status
 ( ------------------------------------ )
-.( TESTING ARITHMETIC )
-( ' -W 10 DUMP CR )
-84 11 -  73 = ASSERT
-62 11 +  73 = ASSERT
-33 61 OR  73 = ASSERT
-77 F3 AND  73 = ASSERT
-72 1+  73 = ASSERT
-74 1-  73 = ASSERT
-9A 98  11 22 +W BA = ASSERT AB = ASSERT
-BC DC  11 22 -W BA = ASSERT AB = ASSERT
-STATUS
+.( testing arithmetic )
+( ' -w 10 dump cr )
+84 11 -  73 = assert
+62 11 +  73 = assert
+33 61 or  73 = assert
+77 f3 and  73 = assert
+72 1+  73 = assert
+74 1-  73 = assert
+9a 98  11 22 +w ba = assert ab = assert
+bc dc  11 22 -w ba = assert ab = assert
+status
 ( ------------------------------------ )
-.( TESTING COMPARISON )
-3 7 < ASSERT
-7 3 < 0= ASSERT
-7 3 > ASSERT
-3 7 > 0= ASSERT
-73 37 <> ASSERT
-7 7 >= ASSERT
-7 7 <= ASSERT
-8 7 <= 0= ASSERT
-7 8 >= 0= ASSERT
-6 7 <= ASSERT
-7 6 >= ASSERT
-AB BA AB BA =W ASSERT
-AB BA BA AB =W 0= ASSERT
-AB BA BA AB <>W ASSERT
-STATUS
+.( testing comparison )
+3 7 < assert
+7 3 < 0= assert
+7 3 > assert
+3 7 > 0= assert
+73 37 <> assert
+7 7 >= assert
+7 7 <= assert
+8 7 <= 0= assert
+7 8 >= 0= assert
+6 7 <= assert
+7 6 >= assert
+ab ba ab ba =w assert
+ab ba ba ab =w 0= assert
+ab ba ba ab <>w assert
+status
 ( ------------------------------------ )
-.( TESTING COMPILER )
-: TEST-IMMEDIATE1 73 ; IMMEDIATE
-: TEST-IMMEDIATE2 37 TEST-IMMEDIATE1 ;
-TEST-IMMEDIATE2 37 = ASSERT 73 = ASSERT
-STATUS
+.( testing compiler )
+: test-immediate1 73 ; immediate
+: test-immediate2 37 test-immediate1 ;
+test-immediate2 37 = assert 73 = assert
+status
 ( ------------------------------------ )
-.( TESTING RETURN STACK/LITERALS )
-: TEST-R>W  AB BA >RW 73 R>W ;
-TEST-R>W  AB BA =W ASSERT 73 = ASSERT
-: TEST-LIT  LIT [ CD , ] ;
-DC TEST-LIT CD = ASSERT DC = ASSERT
-: TEST-LITW  LITW [ 65 02 ,2 ] ;
-13 37 TEST-LITW
-65 02 =W ASSERT 13 37 =W ASSERT
-STATUS
+.( testing return stack/literals )
+: test-r>w  ab ba >rw 73 r>w ;
+test-r>w  ab ba =w assert 73 = assert
+: test-lit  lit [ cd , ] ;
+dc test-lit cd = assert dc = assert
+: test-litw  litw [ 65 02 ,2 ] ;
+13 37 test-litw
+65 02 =w assert 13 37 =w assert
+status
 ( ------------------------------------ )
-.( TESTING STRINGS )
-CHAR 0  30 = ASSERT
-CHAR  1  1 = ASSERT 20 = ASSERT
+.( testing strings )
+char 0  30 = assert
+char  1  1 = assert 20 = assert
 73
-S" HELLO THERE?" COUNT TYPE CR
-73 = ASSERT
-STATUS
+s" hello there?" count type cr
+73 = assert
+status
 ( ------------------------------------ )
-.( TESTING CONDITIONALS )
-: TEST3 IF 73 ELSE 37 THEN ;
-TRUE TEST3  73 = ASSERT
-FALSE TEST3  37 = ASSERT
-: TEST4 IF 73 EXIT THEN 37 ;
-TRUE TEST4  73 = ASSERT
-FALSE TEST4  37 = ASSERT
-: TEST5 AB BA DROP ;
-TEST5  AB = ASSERT
-' TEST5 EXECUTE  AB = ASSERT
-STATUS
+.( testing conditionals )
+: test3 if 73 else 37 then ;
+true test3  73 = assert
+false test3  37 = assert
+: test4 if 73 exit then 37 ;
+true test4  73 = assert
+false test4  37 = assert
+: test5 ab ba drop ;
+test5  ab = assert
+' test5 execute  ab = assert
+status
 ( ------------------------------------ )
-.( TESTING LOOPS )
-: LOG4 0
-  BEGIN
-    SWAP 2/ 2/ SWAP 1+
-    OVER 1 <= IF NIP EXIT THEN
-  AGAIN ;
-13 LOG4  2 = ASSERT
-: LOG2 0
-  BEGIN
-    SWAP 2/ SWAP 1+
-  OVER 1 <= UNTIL
-  NIP ;
-13 LOG2  4 = ASSERT
-: TEST-FOR 0 SWAP FOR I + NEXT ;
-73 5 TEST-FOR  0F = ASSERT  73 = ASSERT
-: TEST-DO 0  6 2 DO  I +  1 +LOOP ;
-37 TEST-DO 0E = ASSERT 37 = ASSERT
-STATUS
+.( testing loops )
+: log4 0
+  begin
+    swap 2/ 2/ swap 1+
+    over 1 <= if nip exit then
+  again ;
+13 log4  2 = assert
+: log2 0
+  begin
+    swap 2/ swap 1+
+  over 1 <= until
+  nip ;
+13 log2  4 = assert
+: test-for 0 swap for i + next ;
+73 5 test-for  0f = assert  73 = assert
+: test-do 0  6 2 do  i +  1 +loop ;
+37 test-do 0e = assert 37 = assert
+status
 ( ------------------------------------ )
-.( TESTING POSTPONE )
-: TEST-POSTPONE1 POSTPONE + ; IMMEDIATE
-: TEST-POSTPONE2 64 0F TEST-POSTPONE1 ;
-TEST-POSTPONE2  73 = ASSERT
-( TODO: POSTPONE WITH IMMEDIATE WORD )
-STATUS
+.( testing postpone )
+: test-postpone1 postpone + ; immediate
+: test-postpone2 64 0f test-postpone1 ;
+test-postpone2  73 = assert
+( todo: postpone with immediate word )
+status
 ( ------------------------------------ )
-.( TESTING VARIABLES )
-VARIABLE TEST-VARIABLE-X
-VARIABLE TEST-VARIABLE-Y
-TEST-VARIABLE-X @ 0= ASSERT
-TEST-VARIABLE-Y @ 0= ASSERT
-17 TEST-VARIABLE-X !
-20 TEST-VARIABLE-Y !
-TEST-VARIABLE-X @ TEST-VARIABLE-Y @ +
-37 = ASSERT
-STATUS
+.( testing variables )
+variable test-variable-x
+variable test-variable-y
+test-variable-x @ 0= assert
+test-variable-y @ 0= assert
+17 test-variable-x !
+20 test-variable-y !
+test-variable-x @ test-variable-y @ +
+37 = assert
+status
 ( ------------------------------------ )
-.( TESTING LITERALS/CONSTANTS )
-: TEST-LITERALW [ 12 34 ] LITERALW ;
-56 TEST-LITERALW
-12 34 =W ASSERT  56 = ASSERT
-73 CONSTANT TEST-CONSTANT
-37 TEST-CONSTANT
-73 = ASSERT 37 = ASSERT
-STATUS
+.( testing literals/constants )
+: test-literalw [ 12 34 ] literalw ;
+56 test-literalw
+12 34 =w assert  56 = assert
+73 constant test-constant
+37 test-constant
+73 = assert 37 = assert
+status
 ( ------------------------------------ )
-: TEST-TYPE FOR-EACH EMIT ;
-: TEST-TIMES 8 TIMES DUP . ;
+: test-type for-each emit ;
+: test-times 8 times dup . ;
 

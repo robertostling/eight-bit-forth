@@ -1,33 +1,33 @@
-( SOURCE CODE MANAGEMENT )
-VARIABLEW SOURCE-ADR
-: ACTIVE ( W:SOURCE -- )
-  SOURCE-ADR !W ;
-VARIABLE DEVICE
-: TAPE 1 DEVICE ! ;
-: DISK 8 DEVICE ! ;
-DISK
-: SOURCE ( W:ADR -- )
-  CREATE DUPW DUPW ,2 ,2 ,2 ;
-: SETUP-LOAD/SAVE
-  1 DEVICE @ 0 KERNAL-SETLFS
-  WORD KERNAL-SETNAM ;
-: SCRATCH ( -- )
-  DEVICE @  WORD  SCRATCH-FILE ;
-: LOAD-TO ( W:START -- W:END ERR )
-  SETUP-LOAD/SAVE KERNAL-LOAD ;
-: SAVE-FROM ( W:START W:END -- ERR F )
-  SETUP-LOAD/SAVE KERNAL-SAVE ;
-: SOURCE-END SOURCE-ADR @W 0 2 +W ;
-: SOURCE-OFFSET SOURCE-ADR @W 0 4 +W ;
-: SOURCE-START SOURCE-ADR @W ;
-: SOURCE-RANGE
-  SOURCE-START @W SOURCE-END @W ;
-: LOAD ( -- )
-  SOURCE-START @W LOAD-TO IF
-    ." LOAD ERROR " . CR EXIT
-  THEN SOURCE-END !W ;
-: SAVE ( -- )
-  SOURCE-RANGE SAVE-FROM IF
-    ." SAVE ERROR " . CR EXIT
-  THEN DROP ;
-: RUN SOURCE-RANGE INTERPRET ;
+( source code management )
+variablew source-adr
+: active ( w:source -- )
+  source-adr !w ;
+variable device
+: tape 1 device ! ;
+: disk 8 device ! ;
+disk
+: source ( w:adr -- )
+  create dupw dupw ,2 ,2 ,2 ;
+: setup-load/save
+  1 device @ 0 kernal-setlfs
+  word kernal-setnam ;
+: scratch ( -- )
+  device @  word  scratch-file ;
+: load-to ( w:start -- w:end err )
+  setup-load/save kernal-load ;
+: save-from ( w:start w:end -- err f )
+  setup-load/save kernal-save ;
+: source-end source-adr @w 0 2 +w ;
+: source-offset source-adr @w 0 4 +w ;
+: source-start source-adr @w ;
+: source-range
+  source-start @w source-end @w ;
+: load ( -- )
+  source-start @w load-to if
+    ." load error " . cr exit
+  then source-end !w ;
+: save ( -- )
+  source-range save-from if
+    ." save error " . cr exit
+  then drop ;
+: run source-range interpret ;

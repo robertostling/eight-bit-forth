@@ -2,563 +2,563 @@
 : ,3 , , , ;
 : 0 00 ;
 : 1 01 ;
-( USE WITH IMM )
-: ORA 0 ;
-: ANDA 20 ;
-: EORA 40 ;
-: ADC 60 ;
-: STA 80 ;
-: LDA A0 ;
-: CMP C0 ;
-: SBC E0 ;
-( USE WITH IMPL )
-: ASL 1 ;
-: ROL 21 ;
-: LSR 41 ;
-: ROR 61 ;
-( USE WITH NEITHER )
-: DEC C1 ;
-: INC E1 ;
-( ADDRESSING MODES )
-: IMPL 9 + , ;
-: IMM 9 + ,2 ;
-: ADR D + ,3 ;
-: ZP 5 + ,2 ;
-: (X) 1 + ,2 ;
-: (Y) 11 + ,2 ;
-: ZP,X 15 + ,2 ;
-: ADR,Y 19 + ,3 ;
-: ADR,X 1D + ,3 ;
-( BRANCHING )
-: BPL 10 ,2 ;
-: BMI 30 ,2 ;
-: BVC 50 ,2 ;
-: BVS 70 ,2 ;
-: BCC 90 ,2 ;
-: BCS B0 ,2 ;
-: BNE D0 ,2 ;
-: BEQ F0 ,2 ;
-: BRK 00 , ;
-: JSR 20 ,3 ; 
-: RTI 40 , ;
-( RTS HAS BUILT-IN OPTIMIZING WORD )
-: JMP 4C ,3 ;
-: JMPI 6C ,3 ;
-: NOP EA , ;
-: JAM 02 , ;
-( ZERO-OPERAND INSTRUCTIONS )
-: PHP 08 , ;
-: CLC 18 , ;
-: PLP 28 , ;
-: SEC 38 , ;
-: PHA 48 , ;
-: CLI 58 , ;
-: PLA 68 , ;
-: SEI 78 , ;
-: DEY 88 , ;
-: TYA 98 , ;
-: TAY A8 , ;
-: CLV B8 , ;
-: INY C8 , ;
-: CLD D8 , ;
-: INX E8 , ;
-: SED F8 , ;
-: TXA 8A , ;
-: TXS 9A , ;
-: TAX AA , ;
-: TSX BA , ;
-: DEX CA , ;
-( VARIOUS INSTRUCTIONS WITH NON-UNIFORM
-  ADDRESSING MODES )
-: LDXIMM A2 ,2 ;
-: LDXZP A6 ,2 ;
-: LDYIMM A0 ,2 ;
-: STYZP 84 ,2 ;
-: STYZP,X 94 ,2 ;
-: LDYZP A4 ,2 ;
-: LDYZP,X B4 ,2 ;
-: STYADR 8C ,3 ;
-: LDYADR AC ,3 ;
-: LDYADR,X BC ,3 ;
-: STXZP 86 ,2 ;
-: STXZP,Y 96 ,2 ;
-: STXADR 8E ,3 ;
-: CPYIMM C0 ,2 ;
-: CPXIMM E0 ,2 ;
-: CPYZP C4 ,2 ;
-: CPXZP E4 ,2 ;
-: CPYADR CC ,3 ;
-: CPXADR EC ,3 ;
-: BITZP 24 ,2 ;
-: BITADR 2C ,3 ;
-( CORE COMPILER )
-: STACK> CE ;
-: STACK-1 CD FF ;
-: STACK STACK> 0 ;
-: SBOX> CD ;
-: ZHERE 2 ;
-: ZLAST 4 ;
-: ZINPUT 6 ;
-: ZEND 8 ;
-: ZSTATE C ;
-: ZOPTIMIZE D ;
-: ZTASK E ;
-: ZTEMP 13 ;
-: ZSAVE 1E ;
-: ZMREG 20 ;
-: ZNREG 22 ;
-( TEMP ACCESS MACROS )
-: T ZTEMP ;
-: T+ ZTEMP + ;
-: A>T+ T+ STA ZP ;
-: T+>A T+ LDA ZP ;
-: A>T T STA ZP ;
-: T>A T LDA ZP ;
-( STACK OPERATIONS AND MACROS )
-: SWAP [
-  STACK LDA ADR,X
-  PHA
-  STACK> 1 LDA ADR,X
-  STACK STA ADR,X
-  PLA
-  STACK> 1 STA ADR,X ] ;
-( NOTE: 1-BASED ADDRESSING )
-: S>A STACK> SWAP FF +  LDA ADR,X ;
-: A>S STACK> SWAP FF +  STA ADR,X ;
-: >A STACK LDA ADR,X  INX ;
-: A> DEX  STACK STA ADR,X ;
-( SAME AS >A BUT SETS FLAGS AND COSTS
-  1 MORE CYCLE )
-: PRE>A INX  STACK-1 LDA ADR,X ;
-: TOS>A 1 S>A ;
-: A>TOS 1 A>S ;
-: NOS>A 2 S>A ; 
-: A>NOS 2 A>S ;
-: #A>TOS LDA IMM  A>TOS ;
-( COMPILER WORDS )
-: IMMEDIATE [
-  2 LDYIMM
-  80 LDA IMM
-  ZLAST ORA (Y)
-  ZLAST STA (Y) ] ;
-: ON FF ;
-: OFF 0 ;
-: COMPILING [ ZSTATE LDA ZP  A> ] ;
-: COMPILER [ >A  ZSTATE STA ZP ] ;
-: SO PRE>A 1 BNE RTS ; IMMEDIATE
-: SKIP PRE>A 1 BEQ RTS ; IMMEDIATE
-( STACK OPERATIONS )
-: DUP [ TOS>A A> ] ;
-: DROP [ INX ] ;
-: OVER [ NOS>A A> ] ;
-: OOVER [ 3 S>A A> ] ;
-: NIP [ TOS>A A>NOS INX ] ;
-: SP@ [ TXA A> ] ;
-: SP! [ >A TAX ] ;
-: RP@ [
-  TXA PHA TSX TXA TAY PLA TAX TYA A>
+( use with imm )
+: ora 0 ;
+: anda 20 ;
+: eora 40 ;
+: adc 60 ;
+: sta 80 ;
+: lda a0 ;
+: cmp c0 ;
+: sbc e0 ;
+( use with impl )
+: asl 1 ;
+: rol 21 ;
+: lsr 41 ;
+: ror 61 ;
+( use with neither )
+: dec c1 ;
+: inc e1 ;
+( addressing modes )
+: impl 9 + , ;
+: imm 9 + ,2 ;
+: adr d + ,3 ;
+: zp 5 + ,2 ;
+: (x) 1 + ,2 ;
+: (y) 11 + ,2 ;
+: zp,x 15 + ,2 ;
+: adr,y 19 + ,3 ;
+: adr,x 1d + ,3 ;
+( branching )
+: bpl 10 ,2 ;
+: bmi 30 ,2 ;
+: bvc 50 ,2 ;
+: bvs 70 ,2 ;
+: bcc 90 ,2 ;
+: bcs b0 ,2 ;
+: bne d0 ,2 ;
+: beq f0 ,2 ;
+: brk 00 , ;
+: jsr 20 ,3 ; 
+: rti 40 , ;
+( rts has built-in optimizing word )
+: jmp 4c ,3 ;
+: jmpi 6c ,3 ;
+: nop ea , ;
+: jam 02 , ;
+( zero-operand instructions )
+: php 08 , ;
+: clc 18 , ;
+: plp 28 , ;
+: sec 38 , ;
+: pha 48 , ;
+: cli 58 , ;
+: pla 68 , ;
+: sei 78 , ;
+: dey 88 , ;
+: tya 98 , ;
+: tay a8 , ;
+: clv b8 , ;
+: iny c8 , ;
+: cld d8 , ;
+: inx e8 , ;
+: sed f8 , ;
+: txa 8a , ;
+: txs 9a , ;
+: tax aa , ;
+: tsx ba , ;
+: dex ca , ;
+( various instructions with non-uniform
+  addressing modes )
+: ldximm a2 ,2 ;
+: ldxzp a6 ,2 ;
+: ldyimm a0 ,2 ;
+: styzp 84 ,2 ;
+: styzp,x 94 ,2 ;
+: ldyzp a4 ,2 ;
+: ldyzp,x b4 ,2 ;
+: styadr 8c ,3 ;
+: ldyadr ac ,3 ;
+: ldyadr,x bc ,3 ;
+: stxzp 86 ,2 ;
+: stxzp,y 96 ,2 ;
+: stxadr 8e ,3 ;
+: cpyimm c0 ,2 ;
+: cpximm e0 ,2 ;
+: cpyzp c4 ,2 ;
+: cpxzp e4 ,2 ;
+: cpyadr cc ,3 ;
+: cpxadr ec ,3 ;
+: bitzp 24 ,2 ;
+: bitadr 2c ,3 ;
+( core compiler )
+: stack> ce ;
+: stack-1 cd ff ;
+: stack stack> 0 ;
+: sbox> cd ;
+: zhere 2 ;
+: zlast 4 ;
+: zinput 6 ;
+: zend 8 ;
+: zstate c ;
+: zoptimize d ;
+: ztask e ;
+: ztemp 13 ;
+: zsave 1e ;
+: zmreg 20 ;
+: znreg 22 ;
+( temp access macros )
+: t ztemp ;
+: t+ ztemp + ;
+: a>t+ t+ sta zp ;
+: t+>a t+ lda zp ;
+: a>t t sta zp ;
+: t>a t lda zp ;
+( stack operations and macros )
+: swap [
+  stack lda adr,x
+  pha
+  stack> 1 lda adr,x
+  stack sta adr,x
+  pla
+  stack> 1 sta adr,x ] ;
+( note: 1-based addressing )
+: s>a stack> swap ff +  lda adr,x ;
+: a>s stack> swap ff +  sta adr,x ;
+: >a stack lda adr,x  inx ;
+: a> dex  stack sta adr,x ;
+( same as >a but sets flags and costs
+  1 more cycle )
+: pre>a inx  stack-1 lda adr,x ;
+: tos>a 1 s>a ;
+: a>tos 1 a>s ;
+: nos>a 2 s>a ; 
+: a>nos 2 a>s ;
+: #a>tos lda imm  a>tos ;
+( compiler words )
+: immediate [
+  2 ldyimm
+  80 lda imm
+  zlast ora (y)
+  zlast sta (y) ] ;
+: on ff ;
+: off 0 ;
+: compiling [ zstate lda zp  a> ] ;
+: compiler [ >a  zstate sta zp ] ;
+: so pre>a 1 bne rts ; immediate
+: skip pre>a 1 beq rts ; immediate
+( stack operations )
+: dup [ tos>a a> ] ;
+: drop [ inx ] ;
+: over [ nos>a a> ] ;
+: oover [ 3 s>a a> ] ;
+: nip [ tos>a a>nos inx ] ;
+: sp@ [ txa a> ] ;
+: sp! [ >a tax ] ;
+: rp@ [
+  txa pha tsx txa tay pla tax tya a>
   ] ;
-: RP! [
-  TXA TAY  TOS>A TAX TXS
-  TYA TAX INX ] ;
-: >R >A PHA ; IMMEDIATE
-: R> PLA A> ; IMMEDIATE
-: R>DROP PLA ; IMMEDIATE
-: R@ PLA PHA A> ; IMMEDIATE
-: -ROT [
-  TOS>A PHA
-  NOS>A A>TOS
-  3 S>A A>NOS
-  PLA 3 A>S ] ;
-: ROT -ROT -ROT ;
-: ?DUP [ TOS>A  1 BNE  RTS  A> ] ;
-: 1+ [ STACK INC ADR,X ] ;
-: 1- [ STACK DEC ADR,X ] ;
-: 2* [ STACK ASL ADR,X ] ;
-: 2/ [ STACK LSR ADR,X ] ;
-: 2*W [
-  STACK ASL ADR,X
-  STACK> 1 ROL ADR,X ] ;
-: 2/W [
-  STACK> 1 LSR ADR,X
-  STACK ROR ADR,X ] ;
-: DUPW OVER OVER ;
-: OVERW [ 4 S>A A>  4 S>A A> ] ;
-: SWAPW OVERW [
-  3 S>A 5 A>S  4 S>A 6 A>S
-  TOS>A 3 A>S  NOS>A 4 A>S  INX INX ] ;
-( NEEDED EARLY, REST DEFINED BELOW )
-: +W [
-  CLC
-  3 S>A  STACK> 0 ADC ADR,X  3 A>S
-  4 S>A  STACK> 1 ADC ADR,X  4 A>S
-  INX INX ] ;
-( ZERO-PAGE MACROS )
-: >ZPW ( ZP -- )
-  DUP  >A STA ZP  >A 1+ STA ZP ;
-: ZP>W ( ZP -- )
-  DUP  1+ LDA ZP A>  LDA ZP A> ;
-: +ZPW ( ZP N -- )
-  LDA IMM  CLC  DUP ADC ZP  DUP STA ZP
-  2 BCC  1+ INC ZP ;
-: -ZPW ( ZP N -- )
-  OVER LDA ZP  SEC  SBC IMM  DUP STA ZP
-  2 BCS  1+ DEC ZP ;
-: 1+ZPW ( ZP -- )
-  DUP  INC ZP  2 BNE  1+ INC ZP ;
-( COMPILER WORDS )
-: HERE 0 ZHERE ;
-: HERE@ [ ZHERE LDA ZP  A> ] ;
-: HERE@W
-  [ ZHERE 1 + LDA ZP  A> ] HERE@ ;
-: HERE!W [
-  >A  ZHERE STA ZP
-  >A  ZHERE 1 + STA ZP ] ;
-: >CODE 0 3 +W ;
-: >FLAGS 0 2 +W ;
-: >LAST ;
-( USED FOR HOT-SWAPPING, SEE MAKE ) 
-: MAKER HERE@W 0 3 +W JMP ; IMMEDIATE
-( HANDLE BACKWARD REFERENCES WITH
-  CONDITIONAL BRANCHING OPS )
-: KERNAL-EMIT [ >A  FF D2 JSR ] ;
-: EMIT MAKER KERNAL-EMIT ;
-: SPACE 20 EMIT ;
-: CR 0D EMIT ;
-: HEXDIGIT [
-  TOS>A
-  0F ANDA IMM
-  0A CMP IMM
-  2 BCC
-  6 ADC IMM
-  30 ADC IMM
-  A>TOS ] ;
-: .H
-  DUP 2/ 2/ 2/ 2/ HEXDIGIT EMIT
-  HEXDIGIT EMIT ;
-: . .H SPACE ;
-: .W SWAP .H .H SPACE ;
+: rp! [
+  txa tay  tos>a tax txs
+  tya tax inx ] ;
+: >r >a pha ; immediate
+: r> pla a> ; immediate
+: r>drop pla ; immediate
+: r@ pla pha a> ; immediate
+: -rot [
+  tos>a pha
+  nos>a a>tos
+  3 s>a a>nos
+  pla 3 a>s ] ;
+: rot -rot -rot ;
+: ?dup [ tos>a  1 bne  rts  a> ] ;
+: 1+ [ stack inc adr,x ] ;
+: 1- [ stack dec adr,x ] ;
+: 2* [ stack asl adr,x ] ;
+: 2/ [ stack lsr adr,x ] ;
+: 2*w [
+  stack asl adr,x
+  stack> 1 rol adr,x ] ;
+: 2/w [
+  stack> 1 lsr adr,x
+  stack ror adr,x ] ;
+: dupw over over ;
+: overw [ 4 s>a a>  4 s>a a> ] ;
+: swapw overw [
+  3 s>a 5 a>s  4 s>a 6 a>s
+  tos>a 3 a>s  nos>a 4 a>s  inx inx ] ;
+( needed early, rest defined below )
+: +w [
+  clc
+  3 s>a  stack> 0 adc adr,x  3 a>s
+  4 s>a  stack> 1 adc adr,x  4 a>s
+  inx inx ] ;
+( zero-page macros )
+: >zpw ( zp -- )
+  dup  >a sta zp  >a 1+ sta zp ;
+: zp>w ( zp -- )
+  dup  1+ lda zp a>  lda zp a> ;
+: +zpw ( zp n -- )
+  lda imm  clc  dup adc zp  dup sta zp
+  2 bcc  1+ inc zp ;
+: -zpw ( zp n -- )
+  over lda zp  sec  sbc imm  dup sta zp
+  2 bcs  1+ dec zp ;
+: 1+zpw ( zp -- )
+  dup  inc zp  2 bne  1+ inc zp ;
+( compiler words )
+: here 0 zhere ;
+: here@ [ zhere lda zp  a> ] ;
+: here@w
+  [ zhere 1 + lda zp  a> ] here@ ;
+: here!w [
+  >a  zhere sta zp
+  >a  zhere 1 + sta zp ] ;
+: >code 0 3 +w ;
+: >flags 0 2 +w ;
+: >last ;
+( used for hot-swapping, see make ) 
+: maker here@w 0 3 +w jmp ; immediate
+( handle backward references with
+  conditional branching ops )
+: kernal-emit [ >a  ff d2 jsr ] ;
+: emit maker kernal-emit ;
+: space 20 emit ;
+: cr 0d emit ;
+: hexdigit [
+  tos>a
+  0f anda imm
+  0a cmp imm
+  2 bcc
+  6 adc imm
+  30 adc imm
+  a>tos ] ;
+: .h
+  dup 2/ 2/ 2/ 2/ hexdigit emit
+  hexdigit emit ;
+: . .h space ;
+: .w swap .h .h space ;
 : = [
-  >A  STACK CMP ADR,X  6 BEQ
-  00 #A>TOS  RTS
-  FF #A>TOS ] ;
-( MEMORY MANIPULATION )
-: S>TW NOS>A 1 A>T+  TOS>A 0 A>T+ ;
-: @ [ S>TW  0 LDYIMM
-  T LDA (Y)
-  INX A>TOS ] ;
-: @W [ S>TW  0 LDYIMM
-  T LDA (Y)  A>TOS  INY
-  T LDA (Y)  A>NOS ] ;
-: ! [ S>TW  INX INX  0 LDYIMM
-  >A  T STA (Y) ] ;
-: !W ! [ INY  >A  T STA (Y) ] ;
-: +! [ S>TW  INX INX  0 LDYIMM
-  >A  CLC T ADC (Y)  T STA (Y) ] ;
-: +!W +! [
-  INY >A  T ADC (Y)  T STA (Y) ] ;
-( ARITHMETIC )
-: ALUOP ( OP - )
-  NOS>A  STACK> SWAP 0 SWAP ADR,X
-  INX A>TOS ;
-: - [ SEC SBC ALUOP ] ;
-( : + [ CLC ADC ALUOP ] ; )
-: OR [ ORA ALUOP ] ;
-: XOR [ EORA ALUOP ] ;
-: AND [ ANDA ALUOP ] ;
-: ALUOPW ( OP - )
-  DUP
-  3 S>A
-  STACK> SWAP 0 SWAP ADR,X  3 A>S
-  4 S>A
-  STACK> SWAP 1 SWAP ADR,X  4 A>S
-  INX INX ;
-: ORW [ ORA ALUOPW ] ;
-: XORW [ EORA ALUOPW ] ;
-: ANDW [ ANDA ALUOPW ] ;
-: -W [ SEC SBC ALUOPW ] ;
-( : +W [ CLC ADC ALUOPW ] ; )
-: 1+W [
-  STACK INC ADR,X
-  3 BNE
-  STACK> 1 INC ADR,X ] ;
-: 1C+W +W [ 1 BCS  RTS ] 1+W ;
-( COMPARISON OPERATORS )
-: TRUE FF ;
-: FALSE 0 ;
-: COMPOP ( OPCODE -- )
-  TOS>A  , 6 ,
-  FALSE #A>TOS RTS  TRUE #A>TOS ;
-: 0= [ F0 COMPOP ] ;
-: NOT 0= ;
-: 0< [ 30 COMPOP ] ;
-: 0>= [ 10 COMPOP ] ;
-: 0<> [ D0 COMPOP ] ;
-: 0> DUP 0>= SWAP 0<> AND ;
-: 0<= DUP 0< SWAP 0= OR ;
+  >a  stack cmp adr,x  6 beq
+  00 #a>tos  rts
+  ff #a>tos ] ;
+( memory manipulation )
+: s>tw nos>a 1 a>t+  tos>a 0 a>t+ ;
+: @ [ s>tw  0 ldyimm
+  t lda (y)
+  inx a>tos ] ;
+: @w [ s>tw  0 ldyimm
+  t lda (y)  a>tos  iny
+  t lda (y)  a>nos ] ;
+: ! [ s>tw  inx inx  0 ldyimm
+  >a  t sta (y) ] ;
+: !w ! [ iny  >a  t sta (y) ] ;
+: +! [ s>tw  inx inx  0 ldyimm
+  >a  clc t adc (y)  t sta (y) ] ;
+: +!w +! [
+  iny >a  t adc (y)  t sta (y) ] ;
+( arithmetic )
+: aluop ( op - )
+  nos>a  stack> swap 0 swap adr,x
+  inx a>tos ;
+: - [ sec sbc aluop ] ;
+( : + [ clc adc aluop ] ; )
+: or [ ora aluop ] ;
+: xor [ eora aluop ] ;
+: and [ anda aluop ] ;
+: aluopw ( op - )
+  dup
+  3 s>a
+  stack> swap 0 swap adr,x  3 a>s
+  4 s>a
+  stack> swap 1 swap adr,x  4 a>s
+  inx inx ;
+: orw [ ora aluopw ] ;
+: xorw [ eora aluopw ] ;
+: andw [ anda aluopw ] ;
+: -w [ sec sbc aluopw ] ;
+( : +w [ clc adc aluopw ] ; )
+: 1+w [
+  stack inc adr,x
+  3 bne
+  stack> 1 inc adr,x ] ;
+: 1c+w +w [ 1 bcs  rts ] 1+w ;
+( comparison operators )
+: true ff ;
+: false 0 ;
+: compop ( opcode -- )
+  tos>a  , 6 ,
+  false #a>tos rts  true #a>tos ;
+: 0= [ f0 compop ] ;
+: not 0= ;
+: 0< [ 30 compop ] ;
+: 0>= [ 10 compop ] ;
+: 0<> [ d0 compop ] ;
+: 0> dup 0>= swap 0<> and ;
+: 0<= dup 0< swap 0= or ;
 : < - 0< ;
 : > - 0> ;
 : <= - 0<= ;
 : >= - 0>= ;
 ( : = - 0= ; )
 : <> - 0<> ;
-: <W -W DROP 0< ;
-: >=W -W DROP 0>= ;
-: 0=W OR 0= ;
-: 0<>W OR 0<> ;
-: =W -W 0=W ;
-: <>W -W 0<>W ;
-: 0<W DROP 0< ;
-( WORD HEADER OPERATIONS )
-: >NAME
-  DUPW 0 2 +W @ 1F AND  DUP >R
-  0 SWAP -W  R> ;
-: TAIL;
-  ' >CODE JMP  OFF COMPILER ; IMMEDIATE
-: JUMP ' >CODE JMP ;
-: CALL ' >CODE JSR ;
-( 16-BIT ADDRESSES FOR BOTH FORWARD AND
-  BACKWARD REFERENCES, BUT ONLY 8-BIT
-  JUMPS, WITH ERROR CHECKING )
-: RANGE-ERROR  0 ZINPUT @W 40 TYPE CR  3 ERROR ;
-: <REF HERE@W 1+W 1+W -W
-  SWAP 1+ [ PRE>A  3 BEQ  JUMP RANGE-ERROR ]
-  [ TOS>A  3 BMI  JUMP RANGE-ERROR ] ;
-: REF> HERE@W ;
-: <TARGET
-  DUPW  HERE@W SWAPW -W
-  SWAP [ PRE>A  3 BEQ  JUMP RANGE-ERROR ]
-  [ TOS>A  3 BPL  JUMP RANGE-ERROR ]
-  -ROT 1-W ! ;
-: TARGET> HERE@W ;
-( CONDITIONALS )
-: IF PRE>A 0 BEQ REF> ; IMMEDIATE
-: DISABLE-TAIL
-  0 ZOPTIMIZE @ 7F AND 0 ZOPTIMIZE ! ;
-: THEN <TARGET DISABLE-TAIL
-  ; IMMEDIATE
-: ELSE
-  CLC 0 BCC REF>  SWAPW
-  TAIL; THEN IMMEDIATE
-: CASE
-  >A
-  STACK CMP ADR,X
-  4 BNE
-  INX  ' >CODE JMP ; IMMEDIATE
-( INLINED WORDS )
-: EXIT RTS ; IMMEDIATE
-: DROP
-  COMPILING IF INX
-  ELSE [ INX ] THEN ; IMMEDIATE
-: DROPW
-  COMPILING IF INX INX
-  ELSE [ INX INX ] THEN ; IMMEDIATE
-( RETURN STACK 16-BIT OPS )
-: DUP>RW
-  NOS>A PHA TOS>A PHA ; IMMEDIATE
-: R>DROPW PLA PLA ; IMMEDIATE
-: >RW 
-  NOS>A PHA TOS>A PHA
-  INX INX ; IMMEDIATE
-: R>W
-  DEX DEX
-  PLA A>TOS PLA A>NOS
-  ; IMMEDIATE
-: R@W
-  DEX DEX
-  PLA A>TOS TAY
-  PLA PHA A>NOS
-  TYA PHA ; IMMEDIATE
-( LITERALS/EXECUTION )
-: EXECUTE [
-  >A  CLC 3 ADC IMM  0 A>T+
-  >A  0 ADC IMM  1 A>T+
-  0 ZTEMP JMPI ] ;
-: LIT R>W 1+W DUP>RW @ ;
-: LITW R>W 1+W DUPW 1+W >RW @W ;
-: (TO) R>W 1+W DUPW 1+W >RW @W ! ;
-: (TOW) R>W 1+W DUPW 1+W >RW @W !W ;
-: LETW
-  DUPW DUP>RW @W >RW
-  !W EXECUTE
-  R>W R>W !W ;
-( POSTPONE )
-: DOCOMPILE
-  R>W 1+W DUPW 1+W >RW @W JSR ;
-: POSTPONE
+: <w -w drop 0< ;
+: >=w -w drop 0>= ;
+: 0=w or 0= ;
+: 0<>w or 0<> ;
+: =w -w 0=w ;
+: <>w -w 0<>w ;
+: 0<w drop 0< ;
+( word header operations )
+: >name
+  dupw 0 2 +w @ 1f and  dup >r
+  0 swap -w  r> ;
+: tail;
+  ' >code jmp  off compiler ; immediate
+: jump ' >code jmp ;
+: call ' >code jsr ;
+( 16-bit addresses for both forward and
+  backward references, but only 8-bit
+  jumps, with error checking )
+: range-error  0 zinput @w 40 type cr  3 error ;
+: <ref here@w 1+w 1+w -w
+  swap 1+ [ pre>a  3 beq  jump range-error ]
+  [ tos>a  3 bmi  jump range-error ] ;
+: ref> here@w ;
+: <target
+  dupw  here@w swapw -w
+  swap [ pre>a  3 beq  jump range-error ]
+  [ tos>a  3 bpl  jump range-error ]
+  -rot 1-w ! ;
+: target> here@w ;
+( conditionals )
+: if pre>a 0 beq ref> ; immediate
+: disable-tail
+  0 zoptimize @ 7f and 0 zoptimize ! ;
+: then <target disable-tail
+  ; immediate
+: else
+  clc 0 bcc ref>  swapw
+  tail; then immediate
+: case
+  >a
+  stack cmp adr,x
+  4 bne
+  inx  ' >code jmp ; immediate
+( inlined words )
+: exit rts ; immediate
+: drop
+  compiling if inx
+  else [ inx ] then ; immediate
+: dropw
+  compiling if inx inx
+  else [ inx inx ] then ; immediate
+( return stack 16-bit ops )
+: dup>rw
+  nos>a pha tos>a pha ; immediate
+: r>dropw pla pla ; immediate
+: >rw 
+  nos>a pha tos>a pha
+  inx inx ; immediate
+: r>w
+  dex dex
+  pla a>tos pla a>nos
+  ; immediate
+: r@w
+  dex dex
+  pla a>tos tay
+  pla pha a>nos
+  tya pha ; immediate
+( literals/execution )
+: execute [
+  >a  clc 3 adc imm  0 a>t+
+  >a  0 adc imm  1 a>t+
+  0 ztemp jmpi ] ;
+: lit r>w 1+w dup>rw @ ;
+: litw r>w 1+w dupw 1+w >rw @w ;
+: (to) r>w 1+w dupw 1+w >rw @w ! ;
+: (tow) r>w 1+w dupw 1+w >rw @w !w ;
+: letw
+  dupw dup>rw @w >rw
+  !w execute
+  r>w r>w !w ;
+( postpone )
+: docompile
+  r>w 1+w dupw 1+w >rw @w jsr ;
+: postpone
   '
-  DUPW >FLAGS @ 0< IF
-    >CODE JSR
-  ELSE
-    LITW [ ' DOCOMPILE >CODE ,2 ] JSR
-    >CODE ,2
-  THEN ; IMMEDIATE
-( MAKE AND DYNAMIC RELINKING )
-: PATCH
-  ' >CODE  DUPW 4C -ROT ! ( JMP )
-  1+W HERE@W SWAPW !W  ON COMPILER ;
-: DOMAKE
-  R>W 1+W DUPW @W SWAPW
-  1+W 1+W SWAPW !W ;
-( USE ONLY WITH MAKER WORDS )
-: >MAKE >CODE 1+W ;
-: MAKE
-  COMPILING IF
-    POSTPONE DOMAKE  ' >MAKE ,2
-  ELSE PATCH THEN ; IMMEDIATE
-: UNMAKE ' >MAKE
-  DUPW 1+W 1+W SWAPW !W ;
-: MAKING ' >MAKE ' >CODE SWAPW LETW ;
-( LOOPS )
-: BEGIN TARGET> ; IMMEDIATE
-: AGAIN JMP ; IMMEDIATE
-: UNTIL PRE>A <REF BEQ ; IMMEDIATE
-: FOR PRE>A  0 BEQ REF>  PHA TARGET>
-  ; IMMEDIATE
-: FORW
-  NOS>A  STACK ORA ADR,X  0 BEQ REF>
-  NOS>A PHA TOS>A PHA INX INX
-  TARGET> ; IMMEDIATE
-: NEXT
-  PLA  SEC 1 SBC IMM  PHA
-  <REF BNE
-  PLA
-  <TARGET ; IMMEDIATE
-: NEXTW
-  PLA  SEC 1 SBC IMM A>T
-  PLA  0 SBC IMM  PHA  T ORA ZP  TAY
-  T>A PHA
-  TYA  <REF BNE
-  PLA PLA
-  <TARGET ; IMMEDIATE
-: I PLA PHA A> ; IMMEDIATE
-: IW PLA TAY PLA A> TYA A>
-  NOS>A PHA TOS>A PHA ; IMMEDIATE
-: DO
-  NOS>A PHA TOS>A PHA INX INX
-  TARGET>
-  PLA A>T ( T = COUNT )
-  PLA  T CMP ZP
-  0 BEQ  TARGET>  PHA
-  T>A PHA ; IMMEDIATE
-: +LOOP
-  PLA  CLC STACK ADC ADR,X INX  PHA
-  SWAPW CLC <REF BCC
-  TAIL; THEN IMMEDIATE
-( INPUT STREAM )
-: END@W [ ZEND ZP>W ] ;
-: INPUT@W [ ZINPUT ZP>W ] ;
-: EOB?  INPUT@W END@W =W ;
-: INPUT@@ [
-  0 LDYIMM  ZINPUT LDA (Y)  A>  ] ;
-: INPUT>  [ ZINPUT 1+ZPW ] ;
-: # EOB? SKIP  INPUT@@ 0D = SKIP
-  INPUT> # ; IMMEDIATE
-: CHAR
-  EOB? IF 0 ELSE INPUT@@ INPUT> THEN ;
-: [CHAR]
-  CHAR POSTPONE LITERAL ; IMMEDIATE
+  dupw >flags @ 0< if
+    >code jsr
+  else
+    litw [ ' docompile >code ,2 ] jsr
+    >code ,2
+  then ; immediate
+( make and dynamic relinking )
+: patch
+  ' >code  dupw 4c -rot ! ( jmp )
+  1+w here@w swapw !w  on compiler ;
+: domake
+  r>w 1+w dupw @w swapw
+  1+w 1+w swapw !w ;
+( use only with maker words )
+: >make >code 1+w ;
+: make
+  compiling if
+    postpone domake  ' >make ,2
+  else patch then ; immediate
+: unmake ' >make
+  dupw 1+w 1+w swapw !w ;
+: making ' >make ' >code swapw letw ;
+( loops )
+: begin target> ; immediate
+: again jmp ; immediate
+: until pre>a <ref beq ; immediate
+: for pre>a  0 beq ref>  pha target>
+  ; immediate
+: forw
+  nos>a  stack ora adr,x  0 beq ref>
+  nos>a pha tos>a pha inx inx
+  target> ; immediate
+: next
+  pla  sec 1 sbc imm  pha
+  <ref bne
+  pla
+  <target ; immediate
+: nextw
+  pla  sec 1 sbc imm a>t
+  pla  0 sbc imm  pha  t ora zp  tay
+  t>a pha
+  tya  <ref bne
+  pla pla
+  <target ; immediate
+: i pla pha a> ; immediate
+: iw pla tay pla a> tya a>
+  nos>a pha tos>a pha ; immediate
+: do
+  nos>a pha tos>a pha inx inx
+  target>
+  pla a>t ( t = count )
+  pla  t cmp zp
+  0 beq  target>  pha
+  t>a pha ; immediate
+: +loop
+  pla  clc stack adc adr,x inx  pha
+  swapw clc <ref bcc
+  tail; then immediate
+( input stream )
+: end@w [ zend zp>w ] ;
+: input@w [ zinput zp>w ] ;
+: eob?  input@w end@w =w ;
+: input@@ [
+  0 ldyimm  zinput lda (y)  a>  ] ;
+: input>  [ zinput 1+zpw ] ;
+: # eob? skip  input@@ 0d = skip
+  input> # ; immediate
+: char
+  eob? if 0 else input@@ input> then ;
+: [char]
+  char postpone literal ; immediate
 : .(
-  CHAR DUP [CHAR] ) = IF
-    DROP CR EXIT
-  THEN EMIT TAIL; .( IMMEDIATE
-: # CHAR DUP 0= SWAP 0D = OR
-  SKIP TAIL; # IMMEDIATE
-( STRINGS )
-: S" HERE@W 0 ,
-  BEGIN
-    CHAR DUP [CHAR] " =
-    IF DROP EXIT THEN
-    ,  DUPW 1 -ROT +!
-  AGAIN ;
-: COUNT DUPW 1+W SWAPW  @ ;
-: COUNTW COUNT 0 SWAP ;
-: LITS
-  R>W 1+W DUPW DUPW @ 0 SWAP +W >RW ;
-: DUMP
-  DUP 0= IF DROP DROPW EXIT THEN
-  -ROT DUPW @ . 1+W ROT  1- DUMP ;
-: .S
-  SP@ STACK> SWAP
-  FC OVER - 3F AND DUMP ;
-: " POSTPONE LITS S" DROPW ; IMMEDIATE
+  char dup [char] ) = if
+    drop cr exit
+  then emit tail; .( immediate
+: # char dup 0= swap 0d = or
+  skip tail; # immediate
+( strings )
+: s" here@w 0 ,
+  begin
+    char dup [char] " =
+    if drop exit then
+    ,  dupw 1 -rot +!
+  again ;
+: count dupw 1+w swapw  @ ;
+: countw count 0 swap ;
+: lits
+  r>w 1+w dupw dupw @ 0 swap +w >rw ;
+: dump
+  dup 0= if drop dropw exit then
+  -rot dupw @ . 1+w rot  1- dump ;
+: .s
+  sp@ stack> swap
+  fc over - 3f and dump ;
+: " postpone lits s" dropw ; immediate
 : ."
-  POSTPONE LITS S" DROPW
-  POSTPONE COUNT POSTPONE TYPE
-  ; IMMEDIATE
-( HIGH-LEVEL COMPILER )
-: LAST 0 ZLAST ;
-: LITERALW POSTPONE LITW ,2 ; IMMEDIATE
-: TO POSTPONE (TO) ' 0 6 +W ,2 ; IMMEDIATE
-: TOW POSTPONE (TOW) ' 0 6 +W ,2 ; IMMEDIATE
-: ['] ' POSTPONE LITERALW ; IMMEDIATE
-( DOES> )
-: HERE>CODE LAST @W >CODE HERE!W ;
-: DODOES
-  R>W 1+W  LAST @W >CODE 1+W !W ;
-: DOES>
-  POSTPONE DODOES
-  POSTPONE R>W POSTPONE 1+W ; IMMEDIATE
-( ADDITIONAL LOOPING CONSTRUCTS )
-: CALL-PARENT [
-  ZTEMP STXZP  TSX
-  01 04 LDA ADR,X  PHA
-  01 03 LDA ADR,X  PHA
-  ZTEMP LDXZP ] ;
-: FOR-EACH
-  ?DUP 0= IF R>DROPW DROPW EXIT THEN
-  -ROT DUPW 1+W SWAPW @
-  CALL-PARENT
-  ROT 1- FOR-EACH ;
-: TIMES
-  ?DUP 0= IF R>DROPW EXIT THEN
-  CALL-PARENT
-  1- TIMES ;
-( DATA STRUCTURES )
-: VARIABLE CREATE 0 , ;
-: VARIABLEW VARIABLE  0 , ;
-: VAR CREATE , DOES> @ ;
-: VARW CREATE ,2 DOES> @W ;
-: ALLOT FOR 0 , NEXT ;
-: ALLOTW FORW 0 , NEXTW ;
-: ARRAY
-  CREATE ALLOT DOES> ROT 0 SWAP +W ;
-: ARRAYW
-  CREATE 2* ALLOT DOES>
-  ROT 0 SWAP 2*W +W ;
-( MISC UTILITIES )
-: << ( X N -- X<<N )
-  DUP 0= IF DROP EXIT THEN [
-  TARGET>
-  STACK> 1 ASL ADR,X
-  STACK DEC ADR,X
-  <REF BNE
-  ] DROP ;
-: !OP ( W:A C -- W:A )
-  -ROT  DUPW >RW  !  R>W ;
-: !+  !OP 1+W ;
-: !-  !OP 1-W ;
-: !+W ( W:A W:X -- W:A+2 )
-  OVERW !W 1+W 1+W ;
-: @+ ( W:A -- W:A+1 C )
-  DUPW 1+W SWAPW @ ;
-: @+W ( W:A -- W:A+2 W:X )
-  DUPW 1+W 1+W SWAPW @W ;
-: NEGATE 0 SWAP - ;
-: NEGATEW 0 0 SWAPW -W ;
-: -!W SWAPW NEGATEW SWAPW +!W ;
-: DUMPW ( W:A W:N -- )
-  FORW @+ . NEXTW DROPW ;
-: TYPEW ( W:A W:N -- )
-  FORW @+ EMIT NEXTW DROPW ;
-: DUP!+ ( W:A C -- W:A+1 C )
-  >R  DUPW R@ -ROT !  1+W R> ;
-: FILLW ( W:A C W:N -- )
-  FORW  DUP!+  NEXTW  DROP DROPW ;
-: !NB ( X Y Z ... W:A N -- )
-  DUP >R  1- 0 SWAP +W  R>
-  FOR  DUP>RW ! R>W 1-W  NEXT
-  DROPW ;
-: !NL ( X Y Z ... W:A N -- )
-  FOR  DUP>RW ! R>W 1+W  NEXT
-  DROPW ;
+  postpone lits s" dropw
+  postpone count postpone type
+  ; immediate
+( high-level compiler )
+: last 0 zlast ;
+: literalw postpone litw ,2 ; immediate
+: to postpone (to) ' 0 6 +w ,2 ; immediate
+: tow postpone (tow) ' 0 6 +w ,2 ; immediate
+: ['] ' postpone literalw ; immediate
+( does> )
+: here>code last @w >code here!w ;
+: dodoes
+  r>w 1+w  last @w >code 1+w !w ;
+: does>
+  postpone dodoes
+  postpone r>w postpone 1+w ; immediate
+( additional looping constructs )
+: call-parent [
+  ztemp stxzp  tsx
+  01 04 lda adr,x  pha
+  01 03 lda adr,x  pha
+  ztemp ldxzp ] ;
+: for-each
+  ?dup 0= if r>dropw dropw exit then
+  -rot dupw 1+w swapw @
+  call-parent
+  rot 1- for-each ;
+: times
+  ?dup 0= if r>dropw exit then
+  call-parent
+  1- times ;
+( data structures )
+: variable create 0 , ;
+: variablew variable  0 , ;
+: var create , does> @ ;
+: varw create ,2 does> @w ;
+: allot for 0 , next ;
+: allotw forw 0 , nextw ;
+: array
+  create allot does> rot 0 swap +w ;
+: arrayw
+  create 2* allot does>
+  rot 0 swap 2*w +w ;
+( misc utilities )
+: << ( x n -- x<<n )
+  dup 0= if drop exit then [
+  target>
+  stack> 1 asl adr,x
+  stack dec adr,x
+  <ref bne
+  ] drop ;
+: !op ( w:a c -- w:a )
+  -rot  dupw >rw  !  r>w ;
+: !+  !op 1+w ;
+: !-  !op 1-w ;
+: !+w ( w:a w:x -- w:a+2 )
+  overw !w 1+w 1+w ;
+: @+ ( w:a -- w:a+1 c )
+  dupw 1+w swapw @ ;
+: @+w ( w:a -- w:a+2 w:x )
+  dupw 1+w 1+w swapw @w ;
+: negate 0 swap - ;
+: negatew 0 0 swapw -w ;
+: -!w swapw negatew swapw +!w ;
+: dumpw ( w:a w:n -- )
+  forw @+ . nextw dropw ;
+: typew ( w:a w:n -- )
+  forw @+ emit nextw dropw ;
+: dup!+ ( w:a c -- w:a+1 c )
+  >r  dupw r@ -rot !  1+w r> ;
+: fillw ( w:a c w:n -- )
+  forw  dup!+  nextw  drop dropw ;
+: !nb ( x y z ... w:a n -- )
+  dup >r  1- 0 swap +w  r>
+  for  dup>rw ! r>w 1-w  next
+  dropw ;
+: !nl ( x y z ... w:a n -- )
+  for  dup>rw ! r>w 1+w  next
+  dropw ;

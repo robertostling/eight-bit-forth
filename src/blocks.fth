@@ -1,198 +1,198 @@
-# BLOCK ADDRESSES ARE BIG-ENDIAN
-# BYTE 0: 0 = BYTE 1 INDICATES DEVICE
-#   OTHERWISE IPV4 ADDRESS BYTES 0-3
-# BYTE 1: 0 = RAM DRIVE
-: BLOCK-VARIABLE  CREATE 8 ALLOT ;
-: !BLOCK ( W:SRC W:TRG -- ) 0 8 <MOVE ;
+# block addresses are big-endian
+# byte 0: 0 = byte 1 indicates device
+#   otherwise ipv4 address bytes 0-3
+# byte 1: 0 = ram drive
+: block-variable  create 8 allot ;
+: !block ( w:src w:trg -- ) 0 8 <move ;
 
-BLOCK-VARIABLE SCR
-BLOCK-VARIABLE BLK
-BLK 0 4 +W VARW BLK4
-BLK 0 7 +W VARW BLK7
-SCR 0 6 +W VARW SCR6
-SCR 0 7 +W VARW SCR7
+block-variable scr
+block-variable blk
+blk 0 4 +w varw blk4
+blk 0 7 +w varw blk7
+scr 0 6 +w varw scr6
+scr 0 7 +w varw scr7
 
-FALSE VAR SCR-VALID
-CREATE BS-KEY 10 ALLOT
+false var scr-valid
+create bs-key 10 allot
 
-: SWAPD ( W:A -- )
-  DUP>RW  @W  R@W 1+W 1+W @W
-  SWAP R@W !W  SWAP R>W 1+W 1+W !W ;
+: swapd ( w:a -- )
+  dup>rw  @w  r@w 1+w 1+w @w
+  swap r@w !w  swap r>w 1+w 1+w !w ;
 
-# TODO: ELSEWHERE?
-: ADD-SHADOW-RAM ( -- )
-  FF D0 DO  I FREE-PAGE DROP  1 +LOOP ;
-ADD-SHADOW-RAM
+# todo: elsewhere?
+: add-shadow-ram ( -- )
+  ff d0 do  i free-page drop  1 +loop ;
+add-shadow-ram
 
-: RD-BLOCK-PAGE ( -- W:A )
-  BLK7 @  RAMDRIVE-PAGE SWAP ;
-: RD-READ ( W:A -- ERR? )
-  RD-BLOCK-PAGE @ 0  SWAPW
-  1 0 <MOVE-SHADOW
-  FALSE ;
-: RD-WRITE ( W:A -- ERR? )
-  RD-BLOCK-PAGE @
-  0= IF
-    # TODO: HANDLE OOM
-    ALLOC-PAGE RD-BLOCK-PAGE !
-  THEN
-  RD-BLOCK-PAGE @ 0  1 0 <MOVE-SHADOW
-  FALSE ;
+: rd-block-page ( -- w:a )
+  blk7 @  rd-page swap ;
+: rd-read ( w:a -- err? )
+  rd-block-page @ 0  swapw
+  1 0 <move-shadow
+  false ;
+: rd-write ( w:a -- err? )
+  rd-block-page @
+  0= if
+    # todo: handle oom
+    alloc-page rd-block-page !
+  then
+  rd-block-page @ 0  1 0 <move-shadow
+  false ;
 
-19 66 VARW BS-PORT
+19 66 varw bs-port
 
-: BS-LOAD-REQ ( -- )
-  BLK4  0 4  0 1  UDP-COPY-PAYLOAD
-  PACKET-WRITE-BUF 0 1D +W SWAPD
-  A0 PACKET-WRITE-BUF 0 1C +W !
-  MY-IP  BLK  AB CD  BS-PORT  0 5
-  UDP-CREATE-HEADER
-  SLIP-WRITE-PACKET ;
-: BS-LOAD-RX ( W:BUF -- ERR? )
-  DUPW  FF  1 00  FILLW
-  SLIP-RX
-  SLIP-RX-STATE SLIP-STATE-DONE <> IF
-    TRUE EXIT
-  THEN
-  # TODO: VERIFY LOAD RESPONSE
-  PACKET-READ-BUF 0 21 +W
-  SWAPW
-  PACKET-READ-SIZE 0 21 -W
-  <MOVE
-  FALSE ;
+: bs-load-req ( -- )
+  blk4  0 4  0 1  udp-copy-payload
+  packet-write-buf 0 1d +w swapd
+  a0 packet-write-buf 0 1c +w !
+  my-ip  blk  ab cd  bs-port  0 5
+  udp-create-header
+  slip-write-packet ;
+: bs-load-rx ( w:buf -- err? )
+  dupw  ff  1 00  fillw
+  slip-rx
+  slip-rx-state slip-state-done <> if
+    true exit
+  then
+  # todo: verify load response
+  packet-read-buf 0 21 +w
+  swapw
+  packet-read-size 0 21 -w
+  <move
+  false ;
 
-: BS-PACK-SIZE ( -- W:SIZE )
-  0 0   1 0 FORW
-    PACKET-WRITE-BUF 0 31 +W
-    1 0 IW -W  +W @
-    FF <> IF
-      DROPW 1 1 IW -W
-    THEN
-  NEXTW ;
-: BS-STORE-REQ ( W:A -- )
-  1 0  0 15  UDP-COPY-PAYLOAD
-  BLK4  0 4  0 11 UDP-COPY-PAYLOAD
-  PACKET-WRITE-BUF 0 2D +W SWAPD
-  BS-KEY  0 10  0 1  UDP-COPY-PAYLOAD
-  A2  PACKET-WRITE-BUF 0 1C +W  !
-  MY-IP  BLK  AB CD  BS-PORT
-  BS-PACK-SIZE  0 15  +W
-  UDP-CREATE-HEADER
-  SLIP-WRITE-PACKET ;
-: BS-STORE-RX ( -- ERR? )
-  SLIP-RX
-  SLIP-RX-STATE SLIP-STATE-DONE <> IF
-    TRUE EXIT
-  THEN
-  PACKET-READ-BUF 0 1C +W @ A3 <> IF
-    TRUE EXIT
-  THEN
-  # TODO: VERIFY BLOCK# AND IP
-  FALSE ;
+: bs-pack-size ( -- w:size )
+  0 0   1 0 forw
+    packet-write-buf 0 31 +w
+    1 0 iw -w  +w @
+    ff <> if
+      dropw 1 1 iw -w
+    then
+  nextw ;
+: bs-store-req ( w:a -- )
+  1 0  0 15  udp-copy-payload
+  blk4  0 4  0 11 udp-copy-payload
+  packet-write-buf 0 2d +w swapd
+  bs-key  0 10  0 1  udp-copy-payload
+  a2  packet-write-buf 0 1c +w  !
+  my-ip  blk  ab cd  bs-port
+  bs-pack-size  0 15  +w
+  udp-create-header
+  slip-write-packet ;
+: bs-store-rx ( -- err? )
+  slip-rx
+  slip-rx-state slip-state-done <> if
+    true exit
+  then
+  packet-read-buf 0 1c +w @ a3 <> if
+    true exit
+  then
+  # todo: verify block# and ip
+  false ;
 
-: BS-READ ( W:A -- ERR? )
-  BS-LOAD-REQ  BS-LOAD-RX ;
-: BS-WRITE ( W:A -- ERR? )
-  BS-STORE-REQ BS-STORE-RX ;
+: bs-read ( w:a -- err? )
+  bs-load-req  bs-load-rx ;
+: bs-write ( w:a -- err? )
+  bs-store-req bs-store-rx ;
 
-CREATE RD-STRUCT
-  ' RD-READ ,2
-  ' RD-WRITE ,2
+create rd-struct
+  ' rd-read ,2
+  ' rd-write ,2
 
-CREATE BS-STRUCT
-  ' BS-READ ,2
-  ' BS-WRITE ,2
+create bs-struct
+  ' bs-read ,2
+  ' bs-write ,2
 
-CREATE BLOCK-DEVICES
-  RD-STRUCT ,2
-  # TODO: MORE DEVICES
+create block-devices
+  rd-struct ,2
+  # todo: more devices
 
-1 VAR MAX-BLOCK-DEVICES
-0 0 VARW FN-READ
-0 2 VARW FN-WRITE
+1 var max-block-devices
+0 0 varw fn-read
+0 2 varw fn-write
 
-: BLK>DEV ( -- W:DEV )
-  BLK @ 0<> IF  BS-STRUCT EXIT  THEN
-  BLK 1+W @  MAX-BLOCK-DEVICES >= IF
-    ." INVALID BLK: " BLK 8 DUMP  CR
-    0 0  EXIT
-  THEN
-  0  BLK 1+W @  2*
-  BLOCK-DEVICES +W @W ;
-: BLOCK-FN ( W:A W:IDX -- ERR? )
-  BLK>DEV  0=W IF
-    DROPW DROPW TRUE EXIT
-  THEN
-  BLK>DEV +W @W EXECUTE ;
-: BLOCK-READ ( W:A -- ERR? )
-  FN-READ BLOCK-FN ;
-: BLOCK-WRITE ( W:A -- ERR? )
-  FN-WRITE BLOCK-FN ;
+: blk>dev ( -- w:dev )
+  blk @ 0<> if  bs-struct exit  then
+  blk 1+w @  max-block-devices >= if
+    ." invalid blk: " blk 8 dump  cr
+    0 0  exit
+  then
+  0  blk 1+w @  2*
+  block-devices +w @w ;
+: block-fn ( w:a w:idx -- err? )
+  blk>dev  0=w if
+    dropw dropw true exit
+  then
+  blk>dev +w @w execute ;
+: block-read ( w:a -- err? )
+  fn-read block-fn ;
+: block-write ( w:a -- err? )
+  fn-write block-fn ;
 
-: UNCOMPRESS-TEXT ( W:A -- )
-  TEXT-BUFFER DUPW 2 FF +W UNCOMPRESS
-  TEXT-BUFFER -W  TOW TEXT-SIZE ;
-: COMPRESS-TEXT ( PAGE -- ERR? )
-  >R  TEXT-BUFFER DUPW TEXT-SIZE +W
-  R> COMPRESS ;
+: uncompress-text ( w:a -- )
+  text-buffer dupw 2 ff +w uncompress
+  text-buffer -w  tow text-size ;
+: compress-text ( page -- err? )
+  >r  text-buffer dupw text-size +w
+  r> compress ;
 
-: SAVE ( -- )
-  SCR-VALID NOT IF
-    ." NO SCREEN OPEN" CR EXIT
-  THEN
-  TEXT-MODIFIED SO
-  ALLOC-PAGE DUP
-  COMPRESS-TEXT IF
-    FREE-PAGE
-    ." COMPRESS ERROR" CR EXIT
-  THEN
-  DUP 0
-  SCR BLK !BLOCK
-  BLOCK-WRITE IF
-    FREE-PAGE
-    ." WRITE ERROR" CR EXIT
-  THEN
-  FREE-PAGE ;
-: CACHE ( -- )
-  FALSE TO TEXT-MODIFIED
-  ALLOC-PAGE
-  DUP 0
-  SCR BLK !BLOCK
-  BLOCK-READ IF
-    FREE-PAGE ." READ ERROR" EXIT
-  THEN
-  DUP 0 UNCOMPRESS-TEXT
-  FREE-PAGE
-  TRUE TO SCR-VALID ;
-: +SCR ( N -- )
-  0 SWAP  SCR6 @W
-  SWAP +W SWAP  SCR6 !W ;
-: -SCR ( N -- )
-  0 SWAP  SCR6 @W
-  SWAP SWAPW -W SWAP  SCR6 !W ;
-: DISCARD ( -- )
-  FALSE TO TEXT-MODIFIED
-  FALSE TO SCR-VALID
-  0 0 TOW TEXT-SIZE ;
-: NEW ( -- )
-  0 0 TOW TEXT-SIZE
-  TRUE TO SCR-VALID
-  FALSE TO TEXT-MODIFIED ;
-: RUN ( -- )
-  TEXT-BUFFER  DUPW TEXT-SIZE +W
-  INTERPRET ;
-: LOADS ( N -- )
-  FOR
-    DISCARD CACHE RUN
-    1 +SCR
-  NEXT ;
-: HEX ( W:A N -- )
-  FOR
-    CHAR C>HEX 4 <<  CHAR C>HEX  +  !+
-  NEXT DROPW ;
-: BLOCK# ( W:A -- ) 8 HEX ;
-: GO ( -- ) CACHE P ;
-: GO# ( -- ) DISCARD  SCR BLOCK#  GO ;
-: GO> ( N -- ) DISCARD  +SCR  GO ;
-: <GO ( N -- ) DISCARD  -SCR  GO ;
-: GO* ( N -- ) DISCARD  SCR7 !  GO ;
+: save ( -- )
+  scr-valid not if
+    ." no screen open" cr exit
+  then
+  text-modified so
+  alloc-page dup
+  compress-text if
+    free-page
+    ." compress error" cr exit
+  then
+  dup 0
+  scr blk !block
+  block-write if
+    free-page
+    ." write error" cr exit
+  then
+  free-page ;
+: cache ( -- )
+  false to text-modified
+  alloc-page
+  dup 0
+  scr blk !block
+  block-read if
+    free-page ." read error" exit
+  then
+  dup 0 uncompress-text
+  free-page
+  true to scr-valid ;
+: +scr ( n -- )
+  0 swap  scr6 @w
+  swap +w swap  scr6 !w ;
+: -scr ( n -- )
+  0 swap  scr6 @w
+  swap swapw -w swap  scr6 !w ;
+: discard ( -- )
+  false to text-modified
+  false to scr-valid
+  0 0 tow text-size ;
+: new ( -- )
+  0 0 tow text-size
+  true to scr-valid
+  false to text-modified ;
+: run ( -- )
+  text-buffer  dupw text-size +w
+  interpret ;
+: loads ( n -- )
+  for
+    discard cache run
+    1 +scr
+  next ;
+: hex ( w:a n -- )
+  for
+    char c>hex 4 <<  char c>hex  +  !+
+  next dropw ;
+: block# ( w:a -- ) 8 hex ;
+: go ( -- ) cache p ;
+: go# ( -- ) discard  scr block#  go ;
+: go> ( n -- ) discard  +scr  go ;
+: <go ( n -- ) discard  -scr  go ;
+: go* ( n -- ) discard  scr7 !  go ;

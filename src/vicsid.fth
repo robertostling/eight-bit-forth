@@ -1,41 +1,41 @@
-( C64 VIC AND SID )
-: FOREGROUND 02 86 ;
-: BACKGROUND D0 21 ;
-: BORDER D0 20 ;
-: BLACK 0 ; : WHITE 1 ;  : RED 2 ;
-: CYAN 3 ;  : PURPLE 4 ; : GREEN 5 ;
-: BLUE 6 ;  : YELLOW 7 ; : ORANGE 8 ;
-: BROWN 9 ; : PINK A ;
-: DARK-GREY B ;   : GREY C ;
-: LIGHT-GREEN D ; : LIGHT-BLUE E ;
-: LIGHT-GREY F ;
-( SID )
-: VOICE1 0 ;
-: VOICE2 7 ;
-: VOICE3 0E ;
-: NOISE 80 ;
-: PULSE 40 ;
-: SAWTOOTH 20 ;
-: TRIANGLE 10 ;
-: GATE 1 ;
-: LOW-PASS 10 ;
-: BAND-PASS 20 ;
-: HIGH-PASS 40 ;
-: FREQUENCY D4 SWAP !W ;
-: CONTROL D4 SWAP 4 + ! ;
-: DUTY D4 SWAP 2 + !W ;
-: FILTER-FREQUENCY D4 15 !W ;
-: DECAY-ATTACK ( DEC ATT VOICE -- )
-  -ROT 4 << OR SWAP D4 SWAP 5 + ! ;
-: RELEASE-SUSTAIN ( REL SUS VOICE -- )
-  -ROT 4 << OR SWAP D4 SWAP 6 + ! ;
-: FILTER-CONTROL D4 17 ! ;
-VARIABLE SID-VOLUME
-VARIABLE SID-FILTER
-: FILTER-VOLUME
-  SID-VOLUME @ SID-FILTER @ OR
-  D4 18 ! ;
-: FILTERS ( BITMASK -- )
-  SID-FILTER ! FILTER-VOLUME ;
-: VOLUME SID-VOLUME ! FILTER-VOLUME ;
+( c64 vic and sid )
+: foreground 02 86 ;
+: background d0 21 ;
+: border d0 20 ;
+: black 0 ; : white 1 ;  : red 2 ;
+: cyan 3 ;  : purple 4 ; : green 5 ;
+: blue 6 ;  : yellow 7 ; : orange 8 ;
+: brown 9 ; : pink a ;
+: dark-grey b ;   : grey c ;
+: light-green d ; : light-blue e ;
+: light-grey f ;
+( sid )
+: voice1 0 ;
+: voice2 7 ;
+: voice3 0e ;
+: noise 80 ;
+: pulse 40 ;
+: sawtooth 20 ;
+: triangle 10 ;
+: gate 1 ;
+: low-pass 10 ;
+: band-pass 20 ;
+: high-pass 40 ;
+: frequency d4 swap !w ;
+: control d4 swap 4 + ! ;
+: duty d4 swap 2 + !w ;
+: filter-frequency d4 15 !w ;
+: decay-attack ( dec att voice -- )
+  -rot 4 << or swap d4 swap 5 + ! ;
+: release-sustain ( rel sus voice -- )
+  -rot 4 << or swap d4 swap 6 + ! ;
+: filter-control d4 17 ! ;
+variable sid-volume
+variable sid-filter
+: filter-volume
+  sid-volume @ sid-filter @ or
+  d4 18 ! ;
+: filters ( bitmask -- )
+  sid-filter ! filter-volume ;
+: volume sid-volume ! filter-volume ;
 

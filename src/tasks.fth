@@ -1,78 +1,78 @@
-( MULTI-TASKING )
-4 VAR MAX-TASKS
-( 2 BYTES PER TASK, STORING X AND S
-  X = 0 INDICATES SLOT IS NOT USED )
-CREATE TASKS MAX-TASKS 2* ALLOT
-MAX-TASKS 1- 2* 0 ZTASK !
-: ACTIVE-TASK [
-  ZTASK LDYZP
-  INY INY
-  MAX-TASKS 2* CPYIMM
-  2 BNE
-  0 LDYIMM
-  ZTASK STYZP
-  TASKS LDA ADR,Y
-  1 BEQ
-  RTS ]
-  ACTIVE-TASK ;
-: FREE-TASK [
-  ZTASK LDYZP
-  INY INY
-  MAX-TASKS 2* CPYIMM
-  2 BNE
-  0 LDYIMM
-  ZTASK STYZP
-  TASKS LDA ADR,Y
-  1 BNE
-  RTS ]
-  FREE-TASK ;
-: NEXT-TASK [
-  CALL ACTIVE-TASK
-  INY
-  TASKS LDA ADR,Y  TAX TXS
-  DEY
-  TASKS LDA ADR,Y  TAX ] ;
-: YIELD [
-  ZTASK LDYZP
-  TXA  TASKS STA ADR,Y
-  INY
-  TSX TXA  TASKS STA ADR,Y
-  JUMP NEXT-TASK ] ;
-: TERMINATE [
-  ZTASK LDYZP
-  0 LDA IMM
-  TASKS STA ADR,Y
-  INY
-  TASKS STA ADR,Y
-  JUMP NEXT-TASK ] ;
-: LAUNCH ( W:WORD -- N ) >CODE [
-  S>TW INX
-  ZTASK LDYZP
-  ZTEMP 2 + STXZP
-  TXA  TASKS STA ADR,Y
-  INY
-  TSX TXA  TASKS STA ADR,Y
-  CALL FREE-TASK
-  ZTEMP 2 + LDXZP  TYA LSR IMPL A>TOS
-  INY INY TYA
-  ASL IMPL ASL IMPL ASL IMPL
-  ASL IMPL ASL IMPL SEC 4 SBC IMM
-  TAX
-  TXS
-  ' TERMINATE >CODE 1-W
-  SWAP  LDA IMM PHA  LDA IMM PHA
-  0 ZTEMP JMPI ] ;
-: KILL ( N -- ) [
-  >A  ASL IMPL  TAY  0 LDA IMM
-  TASKS STA ADR,Y
-  INY
-  TASKS STA ADR,Y ] ;
-MAKE JIFFYS 0 SWAP JIFFY@W +W
-  BEGIN YIELD  JIFFY@W OVERW >=W UNTIL
-  DROPW ;
-MAKE KEY
-  BEGIN
-    KERNAL-GETIN ?DUP
-    SKIP YIELD
-  AGAIN ;
-MAKE EMIT KERNAL-EMIT YIELD ;
+( multi-tasking )
+4 var max-tasks
+( 2 bytes per task, storing x and s
+  x = 0 indicates slot is not used )
+create tasks max-tasks 2* allot
+max-tasks 1- 2* 0 ztask !
+: active-task [
+  ztask ldyzp
+  iny iny
+  max-tasks 2* cpyimm
+  2 bne
+  0 ldyimm
+  ztask styzp
+  tasks lda adr,y
+  1 beq
+  rts ]
+  active-task ;
+: free-task [
+  ztask ldyzp
+  iny iny
+  max-tasks 2* cpyimm
+  2 bne
+  0 ldyimm
+  ztask styzp
+  tasks lda adr,y
+  1 bne
+  rts ]
+  free-task ;
+: next-task [
+  call active-task
+  iny
+  tasks lda adr,y  tax txs
+  dey
+  tasks lda adr,y  tax ] ;
+: yield [
+  ztask ldyzp
+  txa  tasks sta adr,y
+  iny
+  tsx txa  tasks sta adr,y
+  jump next-task ] ;
+: terminate [
+  ztask ldyzp
+  0 lda imm
+  tasks sta adr,y
+  iny
+  tasks sta adr,y
+  jump next-task ] ;
+: launch ( w:word -- n ) >code [
+  s>tw inx
+  ztask ldyzp
+  ztemp 2 + stxzp
+  txa  tasks sta adr,y
+  iny
+  tsx txa  tasks sta adr,y
+  call free-task
+  ztemp 2 + ldxzp  tya lsr impl a>tos
+  iny iny tya
+  asl impl asl impl asl impl
+  asl impl asl impl sec 4 sbc imm
+  tax
+  txs
+  ' terminate >code 1-w
+  swap  lda imm pha  lda imm pha
+  0 ztemp jmpi ] ;
+: kill ( n -- ) [
+  >a  asl impl  tay  0 lda imm
+  tasks sta adr,y
+  iny
+  tasks sta adr,y ] ;
+make jiffys 0 swap jiffy@w +w
+  begin yield  jiffy@w overw >=w until
+  dropw ;
+make key
+  begin
+    kernal-getin ?dup
+    skip yield
+  again ;
+make emit kernal-emit yield ;

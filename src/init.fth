@@ -1,16 +1,16 @@
-: INTERPRET-LINE
-  COUNTW OVERW +W INTERPRET ;
-: REPL BEGIN
-    ."  OK" CR
-    KERNAL-READ-LINE
-    18 0 CURSOR! CR
-    ( ." <" KERNAL-LINE-BUF COUNT TYPE ." >" CR )
-    KERNAL-LINE-BUF INTERPRET-LINE
-  AGAIN ;
+: interpret-line
+  countw overw +w interpret ;
+: repl begin
+    ."  ok" cr
+    kernal-read-line
+    18 0 cursor! cr
+    ( ." <" kernal-line-buf count type ." >" cr )
+    kernal-line-buf interpret-line
+  again ;
 
-SERIAL-INIT
-CR .( INITIALIZED RS-232) CR
-SUNET-IP PING
-SUNET-IP PING
-NEW
-REPL
+serial-init
+cr .( initialized rs-232) cr
+sunet-ip ping
+sunet-ip ping
+new
+repl

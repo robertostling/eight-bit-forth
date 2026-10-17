@@ -1,85 +1,85 @@
-VARIABLEW KERNAL-ROUTINE
-: KERNAL-CALL [ KERNAL-ROUTINE JMPI ] ;
-: KERNAL ( A X Y C W:ADR -- A X Y C )
-  KERNAL-ROUTINE !W [
-  >A LSR IMPL
-  TXA PHA
-  3 S>A PHA  TOS>A TAY  NOS>A TAX  PLA
-  ] KERNAL-CALL [
-  A>T  1 T+ STXZP
-  PLA TAX
-  TYA A>TOS  1 T+>A A>NOS  T>A 3 A>S
-  0 LDA IMM  ROL IMPL  A>
+variablew kernal-routine
+: kernal-call [ kernal-routine jmpi ] ;
+: kernal ( a x y c w:adr -- a x y c )
+  kernal-routine !w [
+  >a lsr impl
+  txa pha
+  3 s>a pha  tos>a tay  nos>a tax  pla
+  ] kernal-call [
+  a>t  1 t+ stxzp
+  pla tax
+  tya a>tos  1 t+>a a>nos  t>a 3 a>s
+  0 lda imm  rol impl  a>
   ] ;
-: KERNAL-OPEN ( -- )
-  0 0 0 0  FF C0 KERNAL  DROPW DROPW ;
-: KERNAL-CLOSE ( LOG -- )
-  0 0 0  FF C3 KERNAL  DROPW DROPW ;
-: KERNAL-SETLFS ( FILENO DEV SEC -- )
-  0  FF BA KERNAL DROPW DROPW ;
-: KERNAL-SETNAM ( W:STR -- )
-  COUNT -ROT SWAP 0  FF BD KERNAL
-  DROPW DROPW ;
-: KERNAL-CHKOUT ( FILENO -- )
-  0 SWAP 0 0  FF C9 KERNAL
-  DROPW DROPW ;
-: KERNAL-CHKIN ( FILENO -- )
-  0 SWAP 0 0  FF C6 KERNAL
-  DROPW DROPW ;
-: KERNAL-LOAD
-  ( W:START -- W:LAST/ERRNO ERRF )
-  0 -ROT SWAP 0  FF D5 KERNAL 
-  IF DROPW 1
-  ELSE ROT DROP SWAP 0 THEN ;
-: KERNAL-GETIN ( -- BYTE )
-  0 0 0 0  FF E4 KERNAL  DROPW DROP ;
-: KERNAL-CHRIN ( -- BYTE )
-  0 0 0 0  FF CF KERNAL  DROPW DROP ;
-: KERNAL-SAVE
-  ( W:START W:LAST -- ERRNO ERRF )
-  SWAP  SWAPW [
-  >A ZSAVE STA ZP
-  >A ZSAVE 1+ STA ZP
-  ] ZSAVE -ROT  0
-  FF D8 KERNAL  NIP NIP ;
-: KERNAL-KEY
-  KERNAL-GETIN ?DUP SKIP KERNAL-KEY ;
-: KEY MAKER KERNAL-KEY ;
-20 ARRAY FILENAME-BUFFER
-: PREPEND-SCRATCH ( W:NAME -- )
-  DUPW @ DUP 2 +  0 FILENAME-BUFFER !
-  FOR
-    DUPW 0 I +W @
-    I 2 + FILENAME-BUFFER !
-  NEXT DROPW
-  [CHAR] S 1 FILENAME-BUFFER !
-  [CHAR] : 2 FILENAME-BUFFER ! ;
-: SCRATCH-FILE ( DEV W:NAME -- )
-  PREPEND-SCRATCH
-  0 FILENAME-BUFFER KERNAL-SETNAM
-  F SWAP F KERNAL-SETLFS
-  KERNAL-OPEN
-  F KERNAL-CLOSE ;
-: JIFFY@W 0 A1 @W SWAP ;
-: JIFFYS 0 SWAP JIFFY@W +W
-  BEGIN JIFFY@W OVERW >=W UNTIL
-  DROPW ;
-: SECONDS FOR 3C JIFFYS NEXT ;
-: CURSOR@ ( -- ROW COL )
-  0 0 0 1  FF F0 KERNAL
-  DROP  ROT DROP ;
-: CURSOR! ( ROW COL -- )
-  0 -ROT 0  FF F0 KERNAL
-  DROPW DROPW ;
-2 0 VARW KERNAL-LINE-BUF
-: FIX-UPPER ( C -- C' )
-  # NOT NEEDED ANYMORE
-  ( DUP 80 < SKIP  60 - ) ;
-: KERNAL-READ-LINE ( -- )
-  KERNAL-LINE-BUF 1+W BEGIN
-    KERNAL-CHRIN FIX-UPPER DUP >R
+: kernal-open ( -- )
+  0 0 0 0  ff c0 kernal  dropw dropw ;
+: kernal-close ( log -- )
+  0 0 0  ff c3 kernal  dropw dropw ;
+: kernal-setlfs ( fileno dev sec -- )
+  0  ff ba kernal dropw dropw ;
+: kernal-setnam ( w:str -- )
+  count -rot swap 0  ff bd kernal
+  dropw dropw ;
+: kernal-chkout ( fileno -- )
+  0 swap 0 0  ff c9 kernal
+  dropw dropw ;
+: kernal-chkin ( fileno -- )
+  0 swap 0 0  ff c6 kernal
+  dropw dropw ;
+: kernal-load
+  ( w:start -- w:last/errno errf )
+  0 -rot swap 0  ff d5 kernal 
+  if dropw 1
+  else rot drop swap 0 then ;
+: kernal-getin ( -- byte )
+  0 0 0 0  ff e4 kernal  dropw drop ;
+: kernal-chrin ( -- byte )
+  0 0 0 0  ff cf kernal  dropw drop ;
+: kernal-save
+  ( w:start w:last -- errno errf )
+  swap  swapw [
+  >a zsave sta zp
+  >a zsave 1+ sta zp
+  ] zsave -rot  0
+  ff d8 kernal  nip nip ;
+: kernal-key
+  kernal-getin ?dup skip kernal-key ;
+: key maker kernal-key ;
+20 array filename-buffer
+: prepend-scratch ( w:name -- )
+  dupw @ dup 2 +  0 filename-buffer !
+  for
+    dupw 0 i +w @
+    i 2 + filename-buffer !
+  next dropw
+  [char] s 1 filename-buffer !
+  [char] : 2 filename-buffer ! ;
+: scratch-file ( dev w:name -- )
+  prepend-scratch
+  0 filename-buffer kernal-setnam
+  f swap f kernal-setlfs
+  kernal-open
+  f kernal-close ;
+: jiffy@w 0 a1 @w swap ;
+: jiffys 0 swap jiffy@w +w
+  begin jiffy@w overw >=w until
+  dropw ;
+: seconds for 3c jiffys next ;
+: cursor@ ( -- row col )
+  0 0 0 1  ff f0 kernal
+  drop  rot drop ;
+: cursor! ( row col -- )
+  0 -rot 0  ff f0 kernal
+  dropw dropw ;
+2 0 varw kernal-line-buf
+: fix-upper ( c -- c' )
+  # not needed anymore
+  ( dup 80 < skip  60 - ) ;
+: kernal-read-line ( -- )
+  kernal-line-buf 1+w begin
+    kernal-chrin fix-upper dup >r
     !+
-    R> 0D = IF
-      NIP  1-  KERNAL-LINE-BUF !  EXIT
-    THEN
-  AGAIN ;
+    r> 0d = if
+      nip  1-  kernal-line-buf !  exit
+    then
+  again ;

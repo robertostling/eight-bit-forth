@@ -1,114 +1,114 @@
-( GENERAL SCREEN HANDLING )
-: CLS 5 EMIT 0E EMIT 93 EMIT ;
-: CHECK-STACK
-  0 SP@ 0 3 <W IF
-    CR ." STACK OVERFLOW" CR  FC SP!
-  THEN
-  0 SP@ 0 FC >=W IF
-    CR ." STACK UNDERFLOW" CR  FC SP!
-  THEN ;
-: DROP-ALL FC SP! ;
+( general screen handling )
+: cls 5 emit 0e emit 93 emit ;
+: check-stack
+  0 sp@ 0 3 <w if
+    cr ." stack overflow" cr  fc sp!
+  then
+  0 sp@ 0 fc >=w if
+    cr ." stack underflow" cr  fc sp!
+  then ;
+: drop-all fc sp! ;
 
-FALSE VAR TEXT-MODIFIED
-0 0 VARW TEXT-SIZE
-0 0 VARW EDITOR-OFFSET
+false var text-modified
+0 0 varw text-size
+0 0 varw editor-offset
 
-: YES-NO ( -- T/F )
-  KEY
-  [CHAR] Y CASE TRUE
-  [CHAR] N CASE FALSE
-  DROP YES-NO ;
-: LIST-LINE ( W:A -- W:A' )
-  DUPW TEXT-BUFFER -W
-  TEXT-SIZE =W SKIP
-  @+ DUP EMIT
-  0D = SKIP LIST-LINE ;
-: L  0 TEXT-BUFFER
-  BEGIN
-    DUPW TEXT-BUFFER -W TEXT-SIZE =W IF
-      DROPW DROP CR EXIT
-    THEN
-    ROT DUP >R DUP . 1+ -ROT ." O "
-    LIST-LINE
-    R> 0F AND 0F = IF
-      ." CONT (Y/N)?" YES-NO NOT IF
-        CR DROPW DROP EXIT
-      THEN
-    THEN
-  AGAIN ;
-: P  TEXT-BUFFER TEXT-SIZE TYPEW ;
+: yes-no ( -- t/f )
+  key
+  [char] y case true
+  [char] n case false
+  drop yes-no ;
+: list-line ( w:a -- w:a' )
+  dupw text-buffer -w
+  text-size =w skip
+  @+ dup emit
+  0d = skip list-line ;
+: l  0 text-buffer
+  begin
+    dupw text-buffer -w text-size =w if
+      dropw drop cr exit
+    then
+    rot dup >r dup . 1+ -rot ." o "
+    list-line
+    r> 0f and 0f = if
+      ." cont (y/n)?" yes-no not if
+        cr dropw drop exit
+      then
+    then
+  again ;
+: p  text-buffer text-size typew ;
 
-: TOUCH-TEXT  TRUE TO TEXT-MODIFIED ;
-: TEXT-START?  EDITOR-OFFSET 0=W ;
-: TEXT-END?  EDITOR-OFFSET TEXT-SIZE =W ;
-: TEXT@ ( -- C )
-  EDITOR-OFFSET TEXT-BUFFER +W @ ;
-: TEXT-CHAR>
-  TEXT-END? SKIP
-  EDITOR-OFFSET 1+W TOW EDITOR-OFFSET ;
-: TEXT-EOL>
-  TEXT-END? SKIP
-  TEXT@ 0D = SKIP
-  TEXT-CHAR> TEXT-EOL> ;
-: TEXT-LINE>
-  TEXT-EOL> TEXT-CHAR> ;
-: TEXT-SEEK ( N -- )
-  0 0 TOW EDITOR-OFFSET
-  FOR TEXT-LINE> NEXT ;
-: EDITOR-OFFSETS ( W:O1 W:O2 -- W:A1 W:A2 )
-  >RW
-  TEXT-BUFFER +W SWAPW
-  TEXT-BUFFER +W SWAPW
-  R>W ;
-: DEL ( N -- )
-  TEXT-SEEK EDITOR-OFFSET
-  TEXT-LINE> EDITOR-OFFSET
-  SWAPW
-  OVERW OVERW -W >RW
-  OVERW TEXT-SIZE SWAPW -W
-  EDITOR-OFFSETS <MOVE
-  TEXT-SIZE R>W -W TOW TEXT-SIZE
-  TOUCH-TEXT ;
-: INS ( W:A W:COUNT N -- )
-  ( ASSUME INSERTED LINE ENDS WITH CR )
-  TEXT-SEEK
-  EDITOR-OFFSET  OVERW +W
-  EDITOR-OFFSET  SWAPW
-  OVERW TEXT-SIZE SWAPW -W
-  EDITOR-OFFSETS MOVE>
-  DUPW TEXT-SIZE +W TOW TEXT-SIZE
-  EDITOR-OFFSET TEXT-BUFFER +W
-  SWAPW <MOVE
-  TOUCH-TEXT ;
-CREATE CR-STR 0D ,
-: REST-OF-LINE ( -- W:A W:COUNT )
-  INPUT@W  BEGIN
-    EOB? IF
-      INPUT@W OVERW -W
-      DUPW 0=W IF
-        # TEMPORARY HACK TO ENSURE CR
-        DROPW DROPW CR-STR 0 1
-      THEN
-      EXIT
-    THEN
-    INPUT@@ INPUT> 0D = IF
-      INPUT@W OVERW -W EXIT
-    THEN
-  AGAIN ;
-: O ( N -- )
-  DUP >R DEL  REST-OF-LINE R> INS ;
-: W ( N -- )
-  >R REST-OF-LINE R> INS ;
-: APPEND-CHAR ( C -- )
-  TEXT-BUFFER TEXT-SIZE +W !
-  TEXT-SIZE 1+W TOW TEXT-SIZE
-  TOUCH-TEXT ;
-: X ( -- )
-  REST-OF-LINE
-  # DUPW 0=W IF  DROPW DROPW EXIT  THEN
-  FORW @+ APPEND-CHAR NEXTW
-  DROPW ;
+: touch-text  true to text-modified ;
+: text-start?  editor-offset 0=w ;
+: text-end?  editor-offset text-size =w ;
+: text@ ( -- c )
+  editor-offset text-buffer +w @ ;
+: text-char>
+  text-end? skip
+  editor-offset 1+w tow editor-offset ;
+: text-eol>
+  text-end? skip
+  text@ 0d = skip
+  text-char> text-eol> ;
+: text-line>
+  text-eol> text-char> ;
+: text-seek ( n -- )
+  0 0 tow editor-offset
+  for text-line> next ;
+: editor-offsets ( w:o1 w:o2 -- w:a1 w:a2 )
+  >rw
+  text-buffer +w swapw
+  text-buffer +w swapw
+  r>w ;
+: del ( n -- )
+  text-seek editor-offset
+  text-line> editor-offset
+  swapw
+  overw overw -w >rw
+  overw text-size swapw -w
+  editor-offsets <move
+  text-size r>w -w tow text-size
+  touch-text ;
+: ins ( w:a w:count n -- )
+  ( assume inserted line ends with cr )
+  text-seek
+  editor-offset  overw +w
+  editor-offset  swapw
+  overw text-size swapw -w
+  editor-offsets move>
+  dupw text-size +w tow text-size
+  editor-offset text-buffer +w
+  swapw <move
+  touch-text ;
+create cr-str 0d ,
+: rest-of-line ( -- w:a w:count )
+  input@w  begin
+    eob? if
+      input@w overw -w
+      dupw 0=w if
+        # temporary hack to ensure cr
+        dropw dropw cr-str 0 1
+      then
+      exit
+    then
+    input@@ input> 0d = if
+      input@w overw -w exit
+    then
+  again ;
+: o ( n -- )
+  dup >r del  rest-of-line r> ins ;
+: w ( n -- )
+  >r rest-of-line r> ins ;
+: append-char ( c -- )
+  text-buffer text-size +w !
+  text-size 1+w tow text-size
+  touch-text ;
+: x ( -- )
+  rest-of-line
+  # dupw 0=w if  dropw dropw exit  then
+  forw @+ append-char nextw
+  dropw ;
 
-: STATUS
-  HERE@W ['] ,2 -W
-  .W ." BYTES USED" CR ;
+: status
+  here@w ['] ,2 -w
+  .w ." bytes used" cr ;

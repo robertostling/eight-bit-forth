@@ -1,213 +1,213 @@
-7 VAR 600BAUD ( LARGEST THAT WORKS HERE )
-2 VAR SERIAL-FILE
-0 VAR DEFAULT-FILE
+7 var 600baud ( largest that works here )
+2 var serial-file
+0 var default-file
 
-02 40 VARW PACKET-MAX-SIZE
-0 0 VARW PACKET-READ-SIZE
-0 0 VARW PACKET-WRITE-SIZE
+02 40 varw packet-max-size
+0 0 varw packet-read-size
+0 0 varw packet-write-size
 
-CREATE PACKET-READ-BUF
-PACKET-MAX-SIZE ALLOTW
+create packet-read-buf
+packet-max-size allotw
 
-CREATE PACKET-WRITE-BUF
-PACKET-MAX-SIZE ALLOTW
+create packet-write-buf
+packet-max-size allotw
 
-CREATE MY-IP C0 , A8 , 0 , 1 ,
-CREATE SUNET-IP 25 , 9C , C0 , 32 ,
-CREATE GW-IP C0 , A8 , 0 , 2 ,
+create my-ip c0 , a8 , 0 , 1 ,
+create sunet-ip 25 , 9c , c0 , 32 ,
+create gw-ip c0 , a8 , 0 , 2 ,
 
-( INIT RS-232 )
-CREATE FN-SERIAL  2 , 600BAUD , 0 ,
+( init rs-232 )
+create fn-serial  2 , 600baud , 0 ,
 
-: SERIAL-INIT ( -- )
-  FN-SERIAL KERNAL-SETNAM
-  SERIAL-FILE 2 0 KERNAL-SETLFS
-  KERNAL-OPEN ;
-: SERIAL-IN ( -- C VALID? )
-  KERNAL-GETIN  02 97 @ 8 AND 0= ;
+: serial-init ( -- )
+  fn-serial kernal-setnam
+  serial-file 2 0 kernal-setlfs
+  kernal-open ;
+: serial-in ( -- c valid? )
+  kernal-getin  02 97 @ 8 and 0= ;
 
-: USE-TERMINAL  DEFAULT-FILE KERNAL-CHKIN ;
-: USE-SERIAL  SERIAL-FILE KERNAL-CHKIN ;
+: use-terminal  default-file kernal-chkin ;
+: use-serial  serial-file kernal-chkin ;
 
-: SLIP-EMIT ( C -- )
-  ( DEFAULT-FILE KERNAL-CHKOUT )
-  ( ." [" DUP .H ." ]" SPACE )
-  SERIAL-FILE KERNAL-CHKOUT
-  DUP C0 = IF
-    DROP DB EMIT DC EMIT EXIT
-  THEN
-  DUP DB = IF
-    DROP DB EMIT DD EMIT EXIT
-  THEN
-  EMIT ;
-: SLIP-WRITE-PACKET ( -- )
-  SERIAL-FILE KERNAL-CHKOUT
-  C0 EMIT
-  PACKET-WRITE-BUF PACKET-WRITE-SIZE FORW
-    DUPW @ SLIP-EMIT  1+W
-  NEXTW DROPW
-  C0 EMIT
-  DEFAULT-FILE KERNAL-CHKOUT ;
+: slip-emit ( c -- )
+  ( default-file kernal-chkout )
+  ( ." [" dup .h ." ]" space )
+  serial-file kernal-chkout
+  dup c0 = if
+    drop db emit dc emit exit
+  then
+  dup db = if
+    drop db emit dd emit exit
+  then
+  emit ;
+: slip-write-packet ( -- )
+  serial-file kernal-chkout
+  c0 emit
+  packet-write-buf packet-write-size forw
+    dupw @ slip-emit  1+w
+  nextw dropw
+  c0 emit
+  default-file kernal-chkout ;
 
-0 VAR SLIP-STATE-START
-1 VAR SLIP-STATE-WAIT
-2 VAR SLIP-STATE-ESC
-3 VAR SLIP-STATE-TIME
-4 VAR SLIP-STATE-DONE
-5 VAR SLIP-STATE-ERR
-6 VAR SLIP-STATE-OVER
+0 var slip-state-start
+1 var slip-state-wait
+2 var slip-state-esc
+3 var slip-state-time
+4 var slip-state-done
+5 var slip-state-err
+6 var slip-state-over
 
-SLIP-STATE-START VAR SLIP-RX-STATE
+slip-state-start var slip-rx-state
 
-0 0 VARW SLIP-TIMEOUT
-: SLIP-TIMEOUT?
-  SLIP-TIMEOUT JIFFY@W <W ;
-: SLIP-SET-TIMEOUT
-  JIFFY@W 1 2C +W TOW SLIP-TIMEOUT ;
-: SLIP-RX-GOT
-  PACKET-READ-SIZE PACKET-MAX-SIZE =W IF
-    DROP
-    SLIP-STATE-OVER TO SLIP-RX-STATE
-    EXIT
-  THEN
-  PACKET-READ-SIZE DUPW 1+W TOW PACKET-READ-SIZE
-  PACKET-READ-BUF +W !
-  SLIP-SET-TIMEOUT ;
-: SLIP-START
-  DUP C0 <> IF
-    SLIP-RX-GOT
-  ELSE
-    DROP
-  THEN
-  SLIP-STATE-WAIT TO SLIP-RX-STATE ;
-: SLIP-WAIT-ESC
-  SLIP-STATE-ESC TO SLIP-RX-STATE ;
-: SLIP-WAIT-END  
-  SLIP-STATE-DONE TO SLIP-RX-STATE ;
-: SLIP-WAIT
-  DB CASE SLIP-WAIT-ESC
-  C0 CASE SLIP-WAIT-END
-  SLIP-RX-GOT ;
-: SLIP-ESC
-  SLIP-STATE-WAIT TO SLIP-RX-STATE
-  DUP DC = IF  DROP C0 SLIP-RX-GOT EXIT  THEN
-  DUP DD = IF  DROP DB SLIP-RX-GOT EXIT  THEN
-  SLIP-STATE-ERR TO SLIP-RX-STATE ;
-: SLIP-RX-NEXT-STATE
-  SLIP-RX-STATE
-  SLIP-STATE-START CASE SLIP-START
-  SLIP-STATE-WAIT CASE SLIP-WAIT
-  SLIP-STATE-ESC CASE SLIP-ESC
-  DROP DROP ;
-: SLIP-RX
-  0 0 TOW PACKET-READ-SIZE
-  SLIP-SET-TIMEOUT
-  USE-SERIAL
-  SLIP-STATE-START TO SLIP-RX-STATE
-  BEGIN
-    SERIAL-IN IF
-      SLIP-RX-NEXT-STATE
-    ELSE
-      DROP
-      SLIP-TIMEOUT? IF
-        SLIP-STATE-TIME TO SLIP-RX-STATE
-      THEN
-    THEN
-  SLIP-RX-STATE SLIP-STATE-TIME >= UNTIL
-  USE-TERMINAL ;
-: PROCESS-PING
-  ." PONG FROM "
-  PACKET-READ-BUF 0 C +W 4 DUMP CR ;
-: PROCESS-ICMP
-  PACKET-READ-BUF 0 14 +W @
-  DUP 8 = IF
-    DROP PROCESS-PING EXIT
-  0= IF
-    ." PONG FROM"
-    PACKET-READ-BUF 0 C +W 4 DUMP CR
-  ELSE
-    ." UNKNOWN ICMP" CR
-  THEN ;
-: PROCESS-UDP
-  ." UDP MESSAGE: "
-  PACKET-READ-BUF 0 1C +W
-  PACKET-READ-SIZE OVERW -W NIP TYPE CR ;
-: PROCESS-IP
-  PACKET-READ-SIZE 0 14 <W IF
-    EXIT
-  THEN
-  PACKET-READ-BUF 0 9 +W @
-  DUP 1 = IF
-    DROP PROCESS-ICMP EXIT
-  THEN
-  DUP 11 = IF
-    DROP PROCESS-UDP EXIT
-  ELSE
-    ." UNKNOWN IP PROTOCOL " . CR
-  THEN ;
-: CHECKSUM ( W:A W:N -- W:X )
-  ( TODO: AVOID WRITING TO BUFFER )
-  DUP 1 AND 0<> IF
-    OVERW OVERW +W 0 -ROT !
-  THEN
-  0 0 SWAPW 1+W 2/W FORW
-    OVERW @W SWAP 1C+W
-    SWAPW 1+W 1+W SWAPW
-  NEXTW
-  SWAPW DROPW
-  FF FF XORW ;
-: ,@ ( W:A -- W:A+1 )
-  DUPW @ , 1+W ;
+0 0 varw slip-timeout
+: slip-timeout?
+  slip-timeout jiffy@w <w ;
+: slip-set-timeout
+  jiffy@w 1 2c +w tow slip-timeout ;
+: slip-rx-got
+  packet-read-size packet-max-size =w if
+    drop
+    slip-state-over to slip-rx-state
+    exit
+  then
+  packet-read-size dupw 1+w tow packet-read-size
+  packet-read-buf +w !
+  slip-set-timeout ;
+: slip-start
+  dup c0 <> if
+    slip-rx-got
+  else
+    drop
+  then
+  slip-state-wait to slip-rx-state ;
+: slip-wait-esc
+  slip-state-esc to slip-rx-state ;
+: slip-wait-end  
+  slip-state-done to slip-rx-state ;
+: slip-wait
+  db case slip-wait-esc
+  c0 case slip-wait-end
+  slip-rx-got ;
+: slip-esc
+  slip-state-wait to slip-rx-state
+  dup dc = if  drop c0 slip-rx-got exit  then
+  dup dd = if  drop db slip-rx-got exit  then
+  slip-state-err to slip-rx-state ;
+: slip-rx-next-state
+  slip-rx-state
+  slip-state-start case slip-start
+  slip-state-wait case slip-wait
+  slip-state-esc case slip-esc
+  drop drop ;
+: slip-rx
+  0 0 tow packet-read-size
+  slip-set-timeout
+  use-serial
+  slip-state-start to slip-rx-state
+  begin
+    serial-in if
+      slip-rx-next-state
+    else
+      drop
+      slip-timeout? if
+        slip-state-time to slip-rx-state
+      then
+    then
+  slip-rx-state slip-state-time >= until
+  use-terminal ;
+: process-ping
+  ." pong from "
+  packet-read-buf 0 c +w 4 dump cr ;
+: process-icmp
+  packet-read-buf 0 14 +w @
+  dup 8 = if
+    drop process-ping exit
+  0= if
+    ." pong from"
+    packet-read-buf 0 c +w 4 dump cr
+  else
+    ." unknown icmp" cr
+  then ;
+: process-udp
+  ." udp message: "
+  packet-read-buf 0 1c +w
+  packet-read-size overw -w nip type cr ;
+: process-ip
+  packet-read-size 0 14 <w if
+    exit
+  then
+  packet-read-buf 0 9 +w @
+  dup 1 = if
+    drop process-icmp exit
+  then
+  dup 11 = if
+    drop process-udp exit
+  else
+    ." unknown ip protocol " . cr
+  then ;
+: checksum ( w:a w:n -- w:x )
+  ( todo: avoid writing to buffer )
+  dup 1 and 0<> if
+    overw overw +w 0 -rot !
+  then
+  0 0 swapw 1+w 2/w forw
+    overw @w swap 1c+w
+    swapw 1+w 1+w swapw
+  nextw
+  swapw dropw
+  ff ff xorw ;
+: ,@ ( w:a -- w:a+1 )
+  dupw @ , 1+w ;
 : 4,@ ,@ ,@ ,@ ,@ ;
-: IP-BUILD-HEADER ( W:SRC W:DEST PROTO -- )
-  HERE@W >RW
-  PACKET-WRITE-BUF HERE!W
-  45 , 0 , PACKET-WRITE-SIZE SWAP ,2
+: ip-build-header ( w:src w:dest proto -- )
+  here@w >rw
+  packet-write-buf here!w
+  45 , 0 , packet-write-size swap ,2
   12 , 34 , 40 , 0 ,
-  40 , ( PROTO ) , 0 , 0 ,
-  SWAPW 4,@ DROPW 4,@ DROPW
-  R>W HERE!W
-  PACKET-WRITE-BUF  0 14  CHECKSUM SWAP
-  PACKET-WRITE-BUF  0 A +W  !W
+  40 , ( proto ) , 0 , 0 ,
+  swapw 4,@ dropw 4,@ dropw
+  r>w here!w
+  packet-write-buf  0 14  checksum swap
+  packet-write-buf  0 a +w  !w
   ;
-0 1 VARW PING-SEQ
-AB BA VARW PING-ID
-: ICMP-PING ( W:DEST -- )
-  0 24 TOW PACKET-WRITE-SIZE
-  MY-IP SWAPW 1 IP-BUILD-HEADER
-  PACKET-WRITE-BUF 0 14 +W
+0 1 varw ping-seq
+ab ba varw ping-id
+: icmp-ping ( w:dest -- )
+  0 24 tow packet-write-size
+  my-ip swapw 1 ip-build-header
+  packet-write-buf 0 14 +w
   8 !+ 0 !+ 0 !+ 0 !+
-  PING-ID SWAP !+W  PING-SEQ SWAP !+W
-  8 FOR  I !+  NEXT
-  DROPW
-  PACKET-WRITE-BUF 0 14 +W  0 10  CHECKSUM SWAP
-  PACKET-WRITE-BUF 0 16 +W !W
-  SLIP-WRITE-PACKET
-  PING-SEQ 1+W TO PING-SEQ
-  PING-ID 1+W TO PING-ID
+  ping-id swap !+w  ping-seq swap !+w
+  8 for  i !+  next
+  dropw
+  packet-write-buf 0 14 +w  0 10  checksum swap
+  packet-write-buf 0 16 +w !w
+  slip-write-packet
+  ping-seq 1+w to ping-seq
+  ping-id 1+w to ping-id
   ;
-: PACKET-INFO
-  ." READ PACKET WITH " PACKET-READ-SIZE .W
-  ." BYTES" CR
-  PACKET-READ-BUF PACKET-READ-SIZE NIP DUMP CR
-  ." HEADER CHECKSUM: "
-  PACKET-READ-BUF 0 14 CHECKSUM .W CR ;
-: PING ( IP -- )
-  ." PING.." ICMP-PING
+: packet-info
+  ." read packet with " packet-read-size .w
+  ." bytes" cr
+  packet-read-buf packet-read-size nip dump cr
+  ." header checksum: "
+  packet-read-buf 0 14 checksum .w cr ;
+: ping ( ip -- )
+  ." ping.." icmp-ping
   ." ."
-  SLIP-RX
-  ." ." SLIP-RX-STATE . CR
-  ( PACKET-INFO )
-  PROCESS-IP ;
-: UDP-CREATE-HEADER ( W:SRC W:DEST
-  W:SRC-PORT W:DEST-PORT W:SIZE -- )
-  DUPW 0 8 +W SWAP
-  PACKET-WRITE-BUF 0 18 +W  !W
-  0 1C +W TOW PACKET-WRITE-SIZE
-  SWAP  PACKET-WRITE-BUF 0 16 +W  !W
-  SWAP  PACKET-WRITE-BUF 0 14 +W  !W
-  0 0  PACKET-WRITE-BUF 0 1A +W  !W
-  11 IP-BUILD-HEADER ;
-: UDP-COPY-PAYLOAD ( W:DATA W:SIZE W:OFFSET -- )
-  PACKET-WRITE-BUF +W 0 1C +W  SWAPW
-  <MOVE ;
+  slip-rx
+  ." ." slip-rx-state . cr
+  ( packet-info )
+  process-ip ;
+: udp-create-header ( w:src w:dest
+  w:src-port w:dest-port w:size -- )
+  dupw 0 8 +w swap
+  packet-write-buf 0 18 +w  !w
+  0 1c +w tow packet-write-size
+  swap  packet-write-buf 0 16 +w  !w
+  swap  packet-write-buf 0 14 +w  !w
+  0 0  packet-write-buf 0 1a +w  !w
+  11 ip-build-header ;
+: udp-copy-payload ( w:data w:size w:offset -- )
+  packet-write-buf +w 0 1c +w  swapw
+  <move ;
