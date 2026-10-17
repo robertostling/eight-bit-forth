@@ -86,7 +86,7 @@ basic_end:
     !set last_core_header = 0
     !macro create_word_header .name, .flags {
 .name_start:
-        !text .name
+        !pet .name
 .name_end:
         !word last_core_header
         !set last_core_header = *-2
@@ -768,6 +768,45 @@ code_text_buffer:
 min_compress_symbol = $60
 
 
+ascii_to_petscii:
+    !zone {
+    cmp #$41
+    bcc .no_change
+    cmp #$5b
+    bcc .bit7
+    cmp #$61
+    bcc .no_change
+    cmp #$7b
+    bcs .no_change
+.bit5:
+    eor #$20
+    rts
+.bit7:
+    eor #$80
+.no_change:
+    rts
+    }
+
+petscii_to_ascii:
+    !zone {
+    cmp #$41
+    bcc .no_change
+    cmp #$5b
+    bcc .bit5
+    cmp #$c1
+    bcc .no_change
+    cmp #$db
+    bcs .no_change
+.bit7:
+    eor #$80
+    rts
+.bit5:
+    eor #$20
+.no_change:
+    rts
+    }
+
+
     ;; TODO: currently using dummy compression, fix this
     ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
     +create_word_header "COMPRESS", 0
@@ -813,6 +852,7 @@ code_compress:
     sec
     sbc #$1f
 
+    jsr petscii_to_ascii
 .store_symbol:
     sta (zp_temp+2),y
 
@@ -918,6 +958,8 @@ code_uncompress:
     ; newline, special case
     lda #$0d
 .decode_atom_petscii:
+    jsr ascii_to_petscii
+
 .store_address = *+1
     sta $ff00
     lda .store_address+0
@@ -1515,15 +1557,22 @@ hexdigit:
     cmp #'0'
     bcc .fail
     cmp #'9'+1
-    bcs .maybe_alpha
+    bcs .maybe_lower
     sbc #'0'-1
     rts
-.maybe_alpha:
-    cmp #'A'
+.maybe_lower:
+    cmp #$41
     bcc .fail
-    cmp #'F'+1
+    cmp #$46+1
+    bcs .maybe_upper
+    sbc #$41-10-1
+    rts
+.maybe_upper:
+    cmp #$c1
+    bcc .fail
+    cmp #$c6+1
     bcs .fail
-    sbc #'A'-10-1
+    sbc #$c1-10-1
     rts
 .fail:
     lda #$ff
