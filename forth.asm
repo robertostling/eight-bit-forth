@@ -42,16 +42,16 @@
     word_buffer_size        = $20       ; size of word buffer excluding count
 
     !address hwstack        = $0100     ; 256 bytes
-    !address kernel_source  = $6000     ; Must be synced with make_prg.py
-                                        ; call in Makefile, and editor.fth!
     !address stack          = $ce00     ; 256 bytes
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
     !address free_list      = $ca00     ; 256 bytes
     !address text_buffer    = $c700     ; 768 bytes
     !address ram_drive      = $c600     ; 256 BYTES
+    !address pair_start     = $c400
+    !address pair_len       = $c300
     first_free_page         = $60       ; comfortably above the heap
-    last_free_page          = $c5       ; right below text_buffer
+    last_free_page          = $c2       ; must be synced with the above!
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -792,6 +792,13 @@ petscii_to_ascii:
     }
 
 
+best_len:
+    !byte 0
+best_offset:
+    !byte 0
+best_start:
+    !word 0
+    
     ;; TODO: currently using dummy compression, fix this
     ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
     +create_word_header "compress", 0
@@ -826,6 +833,108 @@ code_compress:
     cmp stack+2, x
     beq .success
 .not_done:
+    ; there is more input data, first see if there is a pair we can repeat in order to 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ; TODO: continue here, implementing actual compression
+    ; TODO: add 3 pages of compression tables as below
+    ; TODO: make sure the search loop starts and ends at exactly the right indexes, not off-by-2
+
+    ; compression tables
+    ;
+    ; pair_len, y -- one page, number of bytes encoded by pair starting at position y in compressed block
+    ; pair_start, y -- two pages, high/low pointer to input buffer starting at position y in compressed block
+
+.search:
+    lda #1
+    sta best_len
+    lda #$ff
+    sta best_offset
+    ; find output buffer offset to start searching from
+    ldy zp_temp+3
+    cpy #159
+    bcc .find_best_offset
+    ldy #0
+.find_best_offset:
+    ; find the best pair offset
+    ; length of this pair is the sum of the lengths of each item
+    lda pair_len, y
+    clc
+    adc pair_len+1, y
+    ; in order to proceed, this must be greater than the best pair so far
+    cmp best_len
+    bcc .test_next_offset
+
+    ; number of bytes encoded by candidate pair
+    sta bytes_to_compare
+    ; zp_temp+4 = candidate location in input buffer to encode
+    lda pair_start, y
+    sta zp_temp+4
+    lda pair_start+$100, y
+    sta zp_temp+5
+
+    sty candidate_offset
+    ldy bytes_to_compare
+    ; TODO: ensure we do not encode beyond the input buffer
+    dey
+.compare_byte:
+    lda (zp_temp+0), y
+    cmp (zp_temp+4), y
+    bne .no_match
+    dey
+    bpl .compare_byte
+.match:
+    lda bytes_to_compare
+    sta best_len
+    lda candidate_offset
+    sta best_offset
+    lda zp_temp+4
+    sta best_start
+    lda zp_temp+5
+    sta best_start+1
+.no_match:
+    ldy candidate_offset
+.test_next_offset:
+    iny
+    cpy zp_temp+2
+    bne .find_best_offset
+
+    lda best_len
+    cmp #2
+    bcc .encode_atom
+
+    lda zp_temp+2
+    sec
+    sbc best_offset
+    clc
+    adc #$60-2
+
+    ldy #0
+    sta (zp_temp+2),y
+
+    lda best_len
+    clc
+    adc zp_temp+0
+    sta zp_temp+0
+    bcc +
+    inc zp_temp+1
++
+
+    ldy zp_temp+2
+    lda best_len
+    sta pair_len, y
+    lda best_start
+    sta pair_start, y
+    lda best_start+1
+    sta pair_start+$100, y
+
+    inc zp_temp+2
+    beq .failure
+    jmp .next_byte
+
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    
+.encode_atom:
     ldy #0
     lda (zp_temp+0), y
     cmp #$0d
@@ -842,6 +951,7 @@ code_compress:
 .store_symbol:
     sta (zp_temp+2),y
 
+    ; TODO: only if atom
     +incw zp_temp+0
     inc zp_temp+2
     ; output buffer is one page, must not overflow
