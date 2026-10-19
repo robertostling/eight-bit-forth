@@ -129,12 +129,48 @@ create block-devices
 : block-write ( w:a -- err? )
   fn-write block-fn ;
 
+4 var checksum-size
+create checksum checksum-size allot
+# TODO: not deterministic! debug...
+: sbox-mix ( c -- c' )  sbox-page swap @ ;
+: checksum-mix ( c -- )
+  2 for
+    checksum-size for
+      sbox-mix
+      0 i 1- checksum +w +!
+      0 i 1- checksum +w @
+    next
+  next drop ;
+: compute-checksum ( w:a w:n -- )
+  sbox-page 0  checksum  0 checksum-size <move
+  forw  @+ checksum-mix  nextw dropw ;
+: mix-word ( w:x -- w:x' )
+  4 for  sbox-mix over xor swap  next ;
+: checksum-word ( w:a w:n -- w:x )
+  13 37 swapw forw  # a x
+    swapw  @+ 0 swap  # x a+1 t
+    swapw >rw +w  r>w swapw
+    mix-word
+  nextw swapw dropw ;
+: .checksum ( w:a w:n -- )
+  # checksum-word .w ;
+  compute-checksum
+  checksum checksum-size dump ;
+
 : uncompress-text ( w:a -- )
   text-buffer dupw 2 ff +w uncompress
   text-buffer -w  tow text-size ;
 : compress-text ( page -- err? )
   >r  text-buffer dupw text-size +w
   r> compress ;
+: compress-text-verbose ( page -- err? )
+  ." Checksum before compression: "
+  text-buffer text-size .checksum cr
+  dup >r compress-text
+  r> 0 uncompress-text
+  ." Checksum after decompression: "
+  text-buffer text-size .checksum cr ;
+  
 
 : save ( -- )
   scr-valid not if
@@ -142,7 +178,7 @@ create block-devices
   then
   text-modified so
   alloc-page dup
-  compress-text if
+  compress-text-verbose if
     free-page
     ." compress error" cr exit
   then

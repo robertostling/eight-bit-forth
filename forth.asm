@@ -681,6 +681,11 @@ code_1minusw:
 +   dec stack+0, x
     rts
 
+    
+    +create_word_header "sbox-page", 0
+    +push_literal >sbox
+    rts
+
 
     !if include_blocks = 1 {
     +create_word_header "rd-page", 0
@@ -798,7 +803,13 @@ best_offset:
     !byte 0
 best_start:
     !word 0
-    
+candidate_len:
+    !byte 0
+candidate_offset:
+    !byte 0
+bytes_left:
+    !byte 0
+
     ;; TODO: currently using dummy compression, fix this
     ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
     +create_word_header "compress", 0
@@ -810,7 +821,7 @@ code_compress:
     lda stack+4, x
     sta zp_temp+1
 
-    ; temp+2 = output page
+    ; temp+2 = output buffer (one page)
     lda stack+0, x
     sta zp_temp+3
     lda #0
@@ -824,17 +835,25 @@ code_compress:
     sta (zp_temp+2), y
     iny
     bne .fill_page
-    
+
 .next_byte:
     lda zp_temp+0
     cmp stack+1, x
     bne .not_done
     lda zp_temp+1
     cmp stack+2, x
-    beq .success
+    bne .not_done
+    jmp .success
 .not_done:
+    ; the first two bytes must be atoms
+    lda zp_temp+2
+    cmp #2
+    bcs .consider_pair
+    jmp .encode_atom
+    ; jmp .encode_atom ; XXX
     ; there is more input data, first see if there is a pair we can repeat in order to 
 
+.consider_pair:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; TODO: continue here, implementing actual compression
     ; TODO: add 3 pages of compression tables as below
@@ -845,13 +864,26 @@ code_compress:
     ; pair_len, y -- one page, number of bytes encoded by pair starting at position y in compressed block
     ; pair_start, y -- two pages, high/low pointer to input buffer starting at position y in compressed block
 
-.search:
+    ; compute number of bytes left in the input, with a maximum of $ff
+    ; we will not be able to consider pairs generating longer sequences than this
+    lda stack+1, x
+    sec
+    sbc zp_temp+0
+    sta bytes_left
+    lda stack+2, x
+    sbc zp_temp+1
+    beq +
+    lda #$ff
+    sta bytes_left
++
+
     lda #1
     sta best_len
     lda #$ff
     sta best_offset
     ; find output buffer offset to start searching from
-    ldy zp_temp+3
+    ldy zp_temp+2
+    ; TODO: check for off-by-one, connect to constant
     cpy #159
     bcc .find_best_offset
     ldy #0
@@ -864,9 +896,12 @@ code_compress:
     ; in order to proceed, this must be greater than the best pair so far
     cmp best_len
     bcc .test_next_offset
+    ; it must *not* be greater than the number of input bytes left
+    cmp bytes_left
+    bcs .test_next_offset
 
     ; number of bytes encoded by candidate pair
-    sta bytes_to_compare
+    sta candidate_len
     ; zp_temp+4 = candidate location in input buffer to encode
     lda pair_start, y
     sta zp_temp+4
@@ -874,8 +909,7 @@ code_compress:
     sta zp_temp+5
 
     sty candidate_offset
-    ldy bytes_to_compare
-    ; TODO: ensure we do not encode beyond the input buffer
+    ldy candidate_len
     dey
 .compare_byte:
     lda (zp_temp+0), y
@@ -884,7 +918,7 @@ code_compress:
     dey
     bpl .compare_byte
 .match:
-    lda bytes_to_compare
+    lda candidate_len
     sta best_len
     lda candidate_offset
     sta best_offset
@@ -907,6 +941,7 @@ code_compress:
     sec
     sbc best_offset
     clc
+    ; TODO: check for off-by-one, connect to constant
     adc #$60-2
 
     ldy #0
@@ -933,8 +968,17 @@ code_compress:
     jmp .next_byte
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
+
+    ; TODO: something wrong encoding atoms now(?)
 .encode_atom:
+    ldy zp_temp+2
+    lda #1
+    sta pair_len, y
+    lda zp_temp+0
+    sta pair_start, y
+    lda zp_temp+1
+    sta pair_start+$100, y
+
     ldy #0
     lda (zp_temp+0), y
     cmp #$0d
@@ -947,11 +991,11 @@ code_compress:
     cmp #$7f
     bcs .failure
     sec
+    ; TODO: connect to constant
     sbc #$1f
 .store_symbol:
     sta (zp_temp+2),y
 
-    ; TODO: only if atom
     +incw zp_temp+0
     inc zp_temp+2
     ; output buffer is one page, must not overflow

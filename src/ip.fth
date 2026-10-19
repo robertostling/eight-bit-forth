@@ -145,7 +145,7 @@ slip-state-start var slip-rx-state
   else
     ." unknown ip protocol " . cr
   then ;
-: checksum ( w:a w:n -- w:x )
+: ip-checksum ( w:a w:n -- w:x )
   ( todo: avoid writing to buffer )
   dup 1 and 0<> if
     overw overw +w 0 -rot !
@@ -167,7 +167,7 @@ slip-state-start var slip-rx-state
   40 , ( proto ) , 0 , 0 ,
   swapw 4,@ dropw 4,@ dropw
   r>w here!w
-  packet-write-buf  0 14  checksum swap
+  packet-write-buf  0 14  ip-checksum swap
   packet-write-buf  0 a +w  !w
   ;
 0 1 varw ping-seq
@@ -180,7 +180,7 @@ ab ba varw ping-id
   ping-id swap !+w  ping-seq swap !+w
   8 for  i !+  next
   dropw
-  packet-write-buf 0 14 +w  0 10  checksum swap
+  packet-write-buf 0 14 +w  0 10  ip-checksum swap
   packet-write-buf 0 16 +w !w
   slip-write-packet
   ping-seq 1+w to ping-seq
@@ -191,7 +191,7 @@ ab ba varw ping-id
   ." bytes" cr
   packet-read-buf packet-read-size nip dump cr
   ." header checksum: "
-  packet-read-buf 0 14 checksum .w cr ;
+  packet-read-buf 0 14 ip-checksum .w cr ;
 : ping ( ip -- )
   ." ping.." icmp-ping
   ." ."
