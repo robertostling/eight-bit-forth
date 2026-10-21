@@ -810,6 +810,9 @@ candidate_offset:
 bytes_left:
     !byte 0
 
+    compress_atoms = 1 + ($7e - $1f)
+    compress_max_offset = ($ff - compress_atoms)
+
     ;; TODO: currently using dummy compression, fix this
     ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
     +create_word_header "compress", 0
@@ -854,10 +857,6 @@ code_compress:
     ; there is more input data, first see if there is a pair we can repeat in order to 
 
 .consider_pair:
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; TODO: continue here, implementing actual compression
-    ; TODO: add 3 pages of compression tables as below
-    ; TODO: make sure the search loop starts and ends at exactly the right indexes, not off-by-2
 
     ; compression tables
     ;
@@ -882,11 +881,26 @@ code_compress:
     lda #$ff
     sta best_offset
     ; find output buffer offset to start searching from
-    ldy zp_temp+2
-    ; TODO: check for off-by-one, connect to constant
-    cpy #159
-    bcc .find_best_offset
-    ldy #0
+    ; in the loop below, Y will go up to output pointer - 2
+    ; it starts at output pointer - 2 - compress_max_offset
+    ; with a floor value of 0.
+    ; otuput pointer is stored at zp_temp+2
+    lda zp_temp+2
+    sec
+    sbc #compress_max_offset-2
+    bcs +
+    lda #0
++   tay
+
+    ;; TODO: somehow missing this opportunity:
+    ;; : ,2 , , ;
+    ;; : ,3 , , , ;
+    ;; the , , sequence in ,3
+    ;; othercompress.py gives:
+    ;; 00000000  00 00 fc 1b 01 0d 13 61  62 01 1c 00 67 0d 14 66 ...
+    ;; but this code hase 69 at the end, corresponding to the ": ,2" part instead of
+    ;; the 61 62 sequence
+
 .find_best_offset:
     ; find the best pair offset
     ; length of this pair is the sum of the lengths of each item
@@ -896,6 +910,7 @@ code_compress:
     ; in order to proceed, this must be greater than the best pair so far
     cmp best_len
     bcc .test_next_offset
+    beq .test_next_offset
     ; it must *not* be greater than the number of input bytes left
     cmp bytes_left
     bcs .test_next_offset
@@ -909,6 +924,20 @@ code_compress:
     sta zp_temp+5
 
     sty candidate_offset
+
+    ; compute: input buffer position - candidiate location
+    ; this difference must be at most equal to candidate_len
+    ;; sec
+    ;; lda zp_temp+0
+    ;; sbc zp_temp+4
+    ;; sta zp_temp+6
+    ;; lda zp_temp+1
+    ;; sbc zp_temp+5
+    ;; bne .no_match
+    ;; lda candidate_len
+    ;; cmp zp_temp+6
+    ;; bcs .no_match
+
     ldy candidate_len
     dey
 .compare_byte:
@@ -922,15 +951,18 @@ code_compress:
     sta best_len
     lda candidate_offset
     sta best_offset
-    lda zp_temp+4
-    sta best_start
-    lda zp_temp+5
-    sta best_start+1
+    ;lda zp_temp+4
+    ;sta best_start
+    ;lda zp_temp+5
+    ;sta best_start+1
 .no_match:
     ldy candidate_offset
 .test_next_offset:
     iny
-    cpy zp_temp+2
+    tya
+    clc
+    adc #1 ; TODO: fully correct now?
+    cmp zp_temp+2
     bne .find_best_offset
 
     lda best_len
@@ -942,11 +974,22 @@ code_compress:
     sbc best_offset
     clc
     ; TODO: check for off-by-one, connect to constant
-    adc #$60-2
+    adc #(compress_atoms-2)
 
+    ; write symbol to output buffer
     ldy #0
     sta (zp_temp+2),y
 
+    ; the current input pointer contains the offset of the symbol just written
+    ; to the output buffer, so we store this to the pair_start entry corresponding
+    ; to the current output offset
+    ldy zp_temp+2
+    lda zp_temp+0 ; best_start
+    sta pair_start, y
+    lda zp_temp+1 ; best_start+1
+    sta pair_start+$100, y
+
+    ; advance the input pointer by the number of bytes encoded by the last symbol
     lda best_len
     clc
     adc zp_temp+0
@@ -955,21 +998,16 @@ code_compress:
     inc zp_temp+1
 +
 
+    ; store the length of the symbol just written to the output buffer
     ldy zp_temp+2
     lda best_len
     sta pair_len, y
-    lda best_start
-    sta pair_start, y
-    lda best_start+1
-    sta pair_start+$100, y
 
+    ; advance output buffer, abort with failure if we go beyond the page limit
     inc zp_temp+2
     beq .failure
     jmp .next_byte
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-    ; TODO: something wrong encoding atoms now(?)
 .encode_atom:
     ldy zp_temp+2
     lda #1

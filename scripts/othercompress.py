@@ -55,7 +55,7 @@ def compress(data):
     while i < len(data):
         best_length = 1
         best_offset = None
-        for offset in range(min(len(pos_str)-1, max_offset)):
+        for offset in reversed(range(min(len(pos_str)-1, max_offset))):
             enc_length1, enc_i = pos_str[-(offset+2)]
             enc_length2, _ = pos_str[-(offset+1)]
             enc_length = enc_length1 + enc_length2

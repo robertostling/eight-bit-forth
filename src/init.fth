@@ -13,10 +13,14 @@
 # sunet-ip ping
 # sunet-ip ping
 alloc-page var buf-page
-s" test test test" varw test-string
-: compress-test
+s" xxxxxxxxxxxyyyyyyyyxyxyxyxy" varw test-string
+: test-text
   test-string count 0 swap text-buffer swapw <move
-  test-string count 0 swap tow text-size dropw
+  test-string count 0 swap tow text-size dropw ;
+
+# TODO: worked before go# 000000000000000  but not after
+: compress-test
+  test-text
   ." before compression:" cr
   p cr
   ." hex: " text-buffer text-size dumpw cr
@@ -33,5 +37,17 @@ s" test test test" varw test-string
   ." checksum: "
   text-buffer text-size .checksum cr ;
 
-compress-test
+: test2
+  ." checksum: "
+  text-buffer text-size .checksum cr 
+  ." compressing to: " buf-page 0 .w cr
+  text-buffer dupw text-size +w
+  buf-page compress
+  if ." compression error" exit then
+  buf-page 0 uncompress-text
+  ." checksum: "
+  text-buffer text-size .checksum cr ;
+
+# XXX for testing
+scr block# 0000000000000000
 repl

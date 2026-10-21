@@ -78,7 +78,9 @@ def main():
                     print('-'*32 + f' {block_idx:04d} ' + '-'*32)
                     raw_size = len('\n'.join(block)) + len(block) + 1
                     compressed_block = make_block(block)
-                    print(f'( {raw_size} --> {len(compressed_block)} bytes )')
+                    percentage = 100.0 * len(compressed_block) / raw_size
+                    print(f'( {raw_size} --> {len(compressed_block)} bytes '
+                          f' = {percentage:.1f}% )')
                     symbol_stats(compressed_block)
                     print('\n'.join(block))
                     compressed_sizes.append(len(compressed_block))
