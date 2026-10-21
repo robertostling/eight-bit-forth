@@ -44,7 +44,7 @@ s" xxxxxxxxxxxyyyyyyyyxyxyxyxy" varw test-string
   jiffy@w
   text-buffer dupw text-size +w
   buf-page compress
-  if ." compression error" exit then
+  ?dup if ." compression error: " . exit then
   jiffy@w swapw -w ." time: " .w cr
   buf-page 0 uncompress-text
   ." checksum: "

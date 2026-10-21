@@ -31,8 +31,8 @@ false var text-modified
     rot dup >r dup . 1+ -rot ." o "
     list-line
     r> 0f and 0f = if
-      ." cont (y/n)?" yes-no not if
-        cr dropw drop exit
+      ." cont (y/n)?" yes-no cr not if
+        dropw drop exit
       then
     then
   again ;

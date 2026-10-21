@@ -806,17 +806,25 @@ best_start:
 bytes_left:
     !byte 0
 
-    compress_atoms = 1 + ($7e - $1f)
-    compress_max_offset = ($ff - compress_atoms)
-
-    ;; TODO: currently using dummy compression, fix this
-    ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERR? )
+    ; COMPRESS ( W:SRC W:SRC-END TRG-PAGE -- ERRCODE )
+    ; error codes:
+    ;  0 - success
+    ;  1 - output buffer overflow
+    ;  2 - invalid symbol
+    ; Speed is about 250 bytes/s for Forth code, or 2 seconds for ~500 bytes
+    ; being compressed into ~250 bytes
     +create_word_header "compress", 0
 code_compress:
     !zone {
     candidate_offset = zp_temp+6
     candidate_len = zp_temp+7
     candidates_left = zp_temp+8
+    compress_ascii_min = $1f
+    compress_ascii_max = $7e
+    compress_max_output = $fe
+    compress_atoms = 1 + (compress_ascii_max - compress_ascii_min)
+    compress_max_offset = ($ff - compress_atoms)
+
     ; temp+0 = input pointer
     lda stack+3, x
     sta zp_temp+0
@@ -851,17 +859,19 @@ code_compress:
     cmp #2
     bcs .consider_pair
     jmp .encode_atom
-    ; jmp .encode_atom ; XXX
+
     ; there is more input data, first see if there is a pair we can repeat in order to 
-
 .consider_pair:
-
     ; compression tables
     ;
-    ; pair_len, y -- one page, number of bytes encoded by pair starting at
-    ;                position y in compressed block
+    ; pair_len, y -- one page, number of bytes encoded by pair at
+    ;                position y and y+1 in compressed block
     ; pair_start, y -- two pages, high/low pointer to input buffer starting
     ;                  at position y in compressed block
+    ;
+    ; after the length of data that each symbol encodes, the following is done:
+    ; pair_len[(offset-1) & $ff] += data length
+    ; pair_len[offset] = data_length
 
     ; compute number of bytes left in the input, with a maximum of $ff
     ; we will not be able to consider pairs generating longer sequences than this
@@ -898,27 +908,17 @@ code_compress:
     clc
     sbc candidate_offset
     sta candidates_left
-    
+
     ; before optimizations: $8e jiffys for block 0 (test2)
-    ; $88 with zero page
+    ; $88 with variables moved to zero page
     ; $82 with candidates_left counter
+    ; $77 with pair_len storing sums over pairs
 .find_best_offset:
-    ; TODO: candidates for zp: best_len, candidate_len, candidate_offset
-    ; TODO: possible option, keep table of pair sums instead, then this becomes:
-    ; lda best_len
-    ; lda pair_len_sum, y
-    ; cmp best_len
-    ; bcc .test_next_offset
-    ; beq .test_next_offset
-    ; cmp bytes_left
-    ; bcs .test_next_offset
-    
     ; find the best pair offset
     ldy candidate_offset
-    ; length of this pair is the sum of the lengths of each item
+
+    ; bytes encoded by pair starting at this candidate symbol (y)
     lda pair_len, y
-    clc
-    adc pair_len+1, y
     ; in order to proceed, this must be greater than the best pair so far
     cmp best_len
     bcc .test_next_offset
@@ -935,6 +935,7 @@ code_compress:
     lda pair_start+$100, y
     sta zp_temp+5
 
+    ; compare candidate symbol's generation with upcoming data in the input buffer
     ldy candidate_len
     dey
 .compare_byte:
@@ -948,21 +949,11 @@ code_compress:
     sta best_len
     lda candidate_offset
     sta best_offset
-    ;lda zp_temp+4
-    ;sta best_start
-    ;lda zp_temp+5
-    ;sta best_start+1
 .no_match:
-    ;ldy candidate_offset
 .test_next_offset:
     inc candidate_offset
     dec candidates_left
     bne .find_best_offset
-    ;iny
-    ;sta candidate_offset
-    ;iny
-    ;cpy zp_temp+2
-    ;bne .find_best_offset
 
     lda best_len
     cmp #2
@@ -972,7 +963,6 @@ code_compress:
     sec
     sbc best_offset
     clc
-    ; TODO: check for off-by-one, connect to constant
     adc #(compress_atoms-2)
 
     ; write symbol to output buffer
@@ -1001,16 +991,29 @@ code_compress:
     ldy zp_temp+2
     lda best_len
     sta pair_len, y
+    dey
+    clc
+    adc pair_len, y
+    sta pair_len, y
+    ; iny -- not used, can discard Y
 
     ; advance output buffer, abort with failure if we go beyond the page limit
     inc zp_temp+2
-    beq .failure
+    lda #(compress_max_output+1)
+    cmp zp_temp+2
+    beq .failure_overflow
     jmp .next_byte
 
 .encode_atom:
     ldy zp_temp+2
     lda #1
     sta pair_len, y
+    dey
+    clc
+    adc pair_len, y
+    sta pair_len, y
+    iny
+
     lda zp_temp+0
     sta pair_start, y
     lda zp_temp+1
@@ -1023,20 +1026,21 @@ code_compress:
 
     jsr petscii_to_ascii
 
-    cmp #$20
-    bcc .failure
-    cmp #$7f
-    bcs .failure
+    cmp #compress_ascii_min+1
+    bcc .failure_invalid
+    cmp #compress_ascii_max+1
+    bcs .failure_invalid
     sec
-    ; TODO: connect to constant
-    sbc #$1f
+    sbc #compress_ascii_min
 .store_symbol:
+    ; ldy #0
     sta (zp_temp+2),y
 
     +incw zp_temp+0
     inc zp_temp+2
-    ; output buffer is one page, must not overflow
-    beq .failure
+    lda #(compress_max_output+1)
+    cmp zp_temp+2
+    beq .failure_overflow
 
     jmp .next_byte
 
@@ -1044,8 +1048,11 @@ code_compress:
     lda #0
     beq .store_symbol
 
-.failure:
-    lda #$ff
+.failure_overflow:
+    lda #1
+    bne .done
+.failure_invalid:
+    lda #2
     bne .done
 .success:
     lda #0

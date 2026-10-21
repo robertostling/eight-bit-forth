@@ -11,7 +11,7 @@ def make_block(lines):
     return othercompress.compress((('\r'.join(lines) + '\r').encode('ascii')))
 
 
-def split_forth(filename, suffix=[], max_raw_size=0x2ff):
+def split_forth(filename, suffix=[], max_raw_size=0x2ff, max_compressed_size=0xfe):
     block = []
 
     def block_size(lines):
@@ -31,7 +31,7 @@ def split_forth(filename, suffix=[], max_raw_size=0x2ff):
             block.append(line)
             compressed_bytes = block_size(block + suffix)
             raw_bytes = raw_size(block + suffix)
-            compressed_ok = compressed_bytes <= 0xff
+            compressed_ok = compressed_bytes <= max_compressed_size
             raw_ok = raw_bytes <= max_raw_size
             if not (compressed_ok and raw_ok):
                 if last_safe == 0:
@@ -55,7 +55,7 @@ def symbol_stats(data):
         else:
             offset = x - othercompress.sym_min
             n_offset[offset] += 1
-    print(f'{n_literal} literal ({100*n_literal/len(data):.1f}%)')
+    print(f'( {n_literal} of {len(data)} literal = {100*n_literal/len(data):.1f}% )')
     # pprint.pp(sorted(n_offset.items()))
 
 
@@ -76,7 +76,7 @@ def main():
                         # remove SUFFIX_WORD from last block
                         block = block[:-1]
                     print('-'*32 + f' {block_idx:04d} ' + '-'*32)
-                    raw_size = len('\n'.join(block)) + len(block) + 1
+                    raw_size = sum(map(len, block)) + len(block)
                     compressed_block = make_block(block)
                     percentage = 100.0 * len(compressed_block) / raw_size
                     print(f'( {raw_size} --> {len(compressed_block)} bytes '
