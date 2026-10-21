@@ -803,10 +803,6 @@ best_offset:
     !byte 0
 best_start:
     !word 0
-candidate_len:
-    !byte 0
-candidate_offset:
-    !byte 0
 bytes_left:
     !byte 0
 
@@ -818,6 +814,9 @@ bytes_left:
     +create_word_header "compress", 0
 code_compress:
     !zone {
+    candidate_offset = zp_temp+6
+    candidate_len = zp_temp+7
+    candidates_left = zp_temp+8
     ; temp+0 = input pointer
     lda stack+3, x
     sta zp_temp+0
@@ -831,7 +830,6 @@ code_compress:
     sta zp_temp+2
 
     ; output page will be padded with $ff
-    ; TODO: only fill what is necessary, before exiting
     tay
     lda #$ff
 .fill_page:
@@ -860,8 +858,10 @@ code_compress:
 
     ; compression tables
     ;
-    ; pair_len, y -- one page, number of bytes encoded by pair starting at position y in compressed block
-    ; pair_start, y -- two pages, high/low pointer to input buffer starting at position y in compressed block
+    ; pair_len, y -- one page, number of bytes encoded by pair starting at
+    ;                position y in compressed block
+    ; pair_start, y -- two pages, high/low pointer to input buffer starting
+    ;                  at position y in compressed block
 
     ; compute number of bytes left in the input, with a maximum of $ff
     ; we will not be able to consider pairs generating longer sequences than this
@@ -890,19 +890,31 @@ code_compress:
     sbc #compress_max_offset-2
     bcs +
     lda #0
-+   tay
++   sta candidate_offset
 
-    ;; TODO: somehow missing this opportunity:
-    ;; : ,2 , , ;
-    ;; : ,3 , , , ;
-    ;; the , , sequence in ,3
-    ;; othercompress.py gives:
-    ;; 00000000  00 00 fc 1b 01 0d 13 61  62 01 1c 00 67 0d 14 66 ...
-    ;; but this code hase 69 at the end, corresponding to the ": ,2" part instead of
-    ;; the 61 62 sequence
-
+    ; compute how many candidate pairs to consider, store in candidates_left
+    ; that is: output pointer - first_candidate - 1
+    lda zp_temp+2
+    clc
+    sbc candidate_offset
+    sta candidates_left
+    
+    ; before optimizations: $8e jiffys for block 0 (test2)
+    ; $88 with zero page
+    ; $82 with candidates_left counter
 .find_best_offset:
+    ; TODO: candidates for zp: best_len, candidate_len, candidate_offset
+    ; TODO: possible option, keep table of pair sums instead, then this becomes:
+    ; lda best_len
+    ; lda pair_len_sum, y
+    ; cmp best_len
+    ; bcc .test_next_offset
+    ; beq .test_next_offset
+    ; cmp bytes_left
+    ; bcs .test_next_offset
+    
     ; find the best pair offset
+    ldy candidate_offset
     ; length of this pair is the sum of the lengths of each item
     lda pair_len, y
     clc
@@ -923,21 +935,6 @@ code_compress:
     lda pair_start+$100, y
     sta zp_temp+5
 
-    sty candidate_offset
-
-    ; compute: input buffer position - candidiate location
-    ; this difference must be at most equal to candidate_len
-    ;; sec
-    ;; lda zp_temp+0
-    ;; sbc zp_temp+4
-    ;; sta zp_temp+6
-    ;; lda zp_temp+1
-    ;; sbc zp_temp+5
-    ;; bne .no_match
-    ;; lda candidate_len
-    ;; cmp zp_temp+6
-    ;; bcs .no_match
-
     ldy candidate_len
     dey
 .compare_byte:
@@ -956,14 +953,16 @@ code_compress:
     ;lda zp_temp+5
     ;sta best_start+1
 .no_match:
-    ldy candidate_offset
+    ;ldy candidate_offset
 .test_next_offset:
-    iny
-    tya
-    clc
-    adc #1 ; TODO: fully correct now?
-    cmp zp_temp+2
+    inc candidate_offset
+    dec candidates_left
     bne .find_best_offset
+    ;iny
+    ;sta candidate_offset
+    ;iny
+    ;cpy zp_temp+2
+    ;bne .find_best_offset
 
     lda best_len
     cmp #2

@@ -41,9 +41,11 @@ s" xxxxxxxxxxxyyyyyyyyxyxyxyxy" varw test-string
   ." checksum: "
   text-buffer text-size .checksum cr 
   ." compressing to: " buf-page 0 .w cr
+  jiffy@w
   text-buffer dupw text-size +w
   buf-page compress
   if ." compression error" exit then
+  jiffy@w swapw -w ." time: " .w cr
   buf-page 0 uncompress-text
   ." checksum: "
   text-buffer text-size .checksum cr ;

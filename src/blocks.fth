@@ -153,9 +153,9 @@ create checksum checksum-size allot
     mix-word
   nextw swapw dropw ;
 : .checksum ( w:a w:n -- )
-  # checksum-word .w ;
-  compute-checksum
-  checksum checksum-size dump ;
+  checksum-word .w ;
+  # compute-checksum
+  # checksum checksum-size dump ;
 
 : uncompress-text ( w:a -- )
   text-buffer dupw 2 ff +w uncompress
