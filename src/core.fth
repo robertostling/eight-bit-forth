@@ -369,6 +369,7 @@
   pla a>tos tay
   pla pha a>nos
   tya pha ; immediate
+: return r>dropw ;
 ( literals/execution )
 : execute [
   >a  clc 3 adc imm  0 a>t+

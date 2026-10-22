@@ -45,13 +45,13 @@
     !address stack          = $ce00     ; 256 bytes
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
-    !address free_list      = $ca00     ; 256 bytes
-    !address text_buffer    = $c700     ; 768 bytes
-    !address ram_drive      = $c600     ; 256 BYTES
-    !address pair_start     = $c400
-    !address pair_len       = $c300
+    ;!address free_list      = $ca00     ; 256 bytes
+    !address text_buffer    = $c800     ; 768 bytes
+    !address ram_drive      = $c700     ; 256 bytes
+    !address pair_start     = $c500
+    !address pair_len       = $c400
     first_free_page         = $60       ; comfortably above the heap
-    last_free_page          = $c2       ; must be synced with the above!
+    last_free_page          = $c3       ; must be synced with the above!
     stack_init              = $fc       ; initial value of stack pointers
 
 
@@ -1158,26 +1158,6 @@ code_uncompress:
     rts
     }
 
-    ; FREE-PAGE ( PAGE -- ERR? )
-    +create_word_header "free-page", 0
-code_free_page:
-    !zone {
-    lda stack+0, x
-    tay
-    lda free_list, y
-    bne .error
-    lda free_list
-    sta free_list, y
-    sty free_list
-    lda #$ff
-    sta stack+0, x
-    rts
-.error:
-    lda #0
-    sta stack+0, x
-    rts
-    }
-
 
     ;; TODO: unless we really need to be able to create multiple
     ;; RAM drives, consider removing the second argument to make
@@ -1279,57 +1259,76 @@ code_rd_import:
     }
     }
 
+
+    +create_word_header "free-list", 0
+code_free_list:
+    jsr code_dovar
+free_regular_head:
+    !byte 0
+
+
 init_memory:
     !zone {
-    lda #2
-    ldy #0
-    ; by default, make everything unavailable
-.fill_unavailable:
-    sta free_list, y
-    iny
-    bne .fill_unavailable
-
+    ; zp_temp+0 points to current page being inserted
+    ; zp_temp+2 is the last page inserted
     lda #first_free_page
-    ; zp_temp+0 = first free page
-    sta zp_temp+0
-
-    ldy #last_free_page
-    sty free_list
-.fill_free:
-    dey
+    sta zp_temp+1
+    ldy #0
     tya
-    sta free_list+1, y
-    cpy zp_temp+0
-    bne .fill_free
+    sta zp_temp+0
+    sta zp_temp+2
 
-    lda #1
-    sta free_list, y
+.add_block:
+    ;lda zp_temp+2
+    sta (zp_temp+0), y
+
+    lda zp_temp+1
+    sta zp_temp+2
+    inc zp_temp+1
+    cmp #last_free_page
+    bne .add_block
+
+    sta free_regular_head
     rts
     }
+
 
     ; ALLOC-PAGE ( -- PAGE )
     ; page 0 indicates error
     +create_word_header "alloc-page", 0
 code_alloc_page:
     !zone {
-    ldy free_list
-    ; value of 1 indicates end of free list, so empty
-    cpy #1
-    beq .out_of_memory
-    lda free_list, y
-    sta free_list
-    ; mark page as allocated
-    lda #0
-    sta free_list, y
-    tya
-.done:
     dex
+    lda free_regular_head
     sta stack+0, x
+    bne +
     rts
-.out_of_memory:
-    lda #0
-    beq .done
++   sta zp_temp+1
+    ldy #0
+    sty zp_temp+0
+    lda (zp_temp+0), y
+    sta free_regular_head
+    rts
     }
+
+    ; FREE-PAGE ( PAGE -- ERR? )
+    +create_word_header "free-page", 0
+code_free_page:
+    !zone {
+    lda stack+0, x
+    sta zp_temp+1
+    pha
+    ldy #0
+    sty zp_temp+0
+    tya
+    sta stack+0, x
+    lda free_regular_head
+    sta (zp_temp+0), y
+    pla
+    sta free_regular_head
+    rts
+    }
+
 
     ; C>HEX ( C -- N )
     ; N is $ff on error, otherwise a value 0--15
