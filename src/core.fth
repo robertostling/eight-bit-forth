@@ -331,28 +331,6 @@
   [ tos>a  3 bpl  jump range-error ]
   -rot 1-w ! ;
 : target> here@w ;
-( conditionals )
-: if pre>a 0 beq ref> ; immediate
-: disable-tail
-  0 zoptimize @ 7f and 0 zoptimize ! ;
-: then <target disable-tail
-  ; immediate
-: else
-  clc 0 bcc ref>  swapw
-  tail; then immediate
-: case
-  >a
-  stack cmp adr,x
-  4 bne
-  inx  ' >code jmp ; immediate
-( inlined words )
-: exit rts ; immediate
-: drop
-  compiling if inx
-  else [ inx ] then ; immediate
-: dropw
-  compiling if inx inx
-  else [ inx inx ] then ; immediate
 ( return stack 16-bit ops )
 : dup>rw
   nos>a pha tos>a pha ; immediate
@@ -383,6 +361,37 @@
   dupw dup>rw @w >rw
   !w execute
   r>w r>w !w ;
+( conditionals )
+: ?0branch [
+  pla a>t  pla 1 a>t+
+  t 1+zpw
+  pre>a 0 bne ref>
+  0 ldyimm  t lda (y)
+  clc  t adc zp  t sta zp
+  <target
+  1 t+>a pha  t>a pha ] ;
+: if litw [ ' ?0branch >code ,2 ]
+  jsr  0 ,  ref> ; immediate
+: disable-tail
+  0 zoptimize @ 7f and 0 zoptimize ! ;
+: then <target disable-tail
+  ; immediate
+: else
+  clc 0 bcc ref>  swapw
+  tail; then immediate
+: case
+  >a
+  stack cmp adr,x
+  4 bne
+  inx  ' >code jmp ; immediate
+( inlined words )
+: exit rts ; immediate
+: drop
+  compiling if inx
+  else [ inx ] then ; immediate
+: dropw
+  compiling if inx inx
+  else [ inx inx ] then ; immediate
 ( postpone )
 : docompile
   r>w 1+w dupw 1+w >rw @w jsr ;

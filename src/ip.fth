@@ -116,14 +116,15 @@ slip-state-start var slip-rx-state
   slip-rx-state slip-state-time >= until
   use-terminal ;
 : process-ping
-  ." pong from "
+  ." ping from "
   packet-read-buf 0 c +w 4 dump cr ;
 : process-icmp
   packet-read-buf 0 14 +w @
   dup 8 = if
     drop process-ping exit
+  then
   0= if
-    ." pong from"
+    ." pong from "
     packet-read-buf 0 c +w 4 dump cr
   else
     ." unknown icmp" cr
@@ -183,8 +184,8 @@ ab ba varw ping-id
   packet-write-buf 0 14 +w  0 10  ip-checksum swap
   packet-write-buf 0 16 +w !w
   slip-write-packet
-  ping-seq 1+w to ping-seq
-  ping-id 1+w to ping-id
+  ping-seq 1+w tow ping-seq
+  ping-id 1+w tow ping-id
   ;
 : packet-info
   ." read packet with " packet-read-size .w

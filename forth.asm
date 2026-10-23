@@ -1470,6 +1470,11 @@ entry:
 
     lda #0
     tay
+
+    sta $a0                 ; reset jiffy clock
+    sta $a1
+    sta $a2
+
 .clear_tables:
     sta stack, y
     sta hash_table, y

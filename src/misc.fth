@@ -32,3 +32,10 @@ create checksum checksum-size allot
   checksum-word .w ;
   # compute-checksum
   # checksum checksum-size dump ;
+
+# Macros (larger but faster):
+
+: if pre>a 0 beq ref> ; immediate
+: else
+  clc 0 bcc ref>  swapw
+  tail; then immediate

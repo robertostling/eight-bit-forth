@@ -27,7 +27,12 @@ create bs-key 10 allot
 : rd-block-page ( -- w:a )
   blk7 @  rd-page swap ;
 : rd-read ( w:a -- err? )
-  rd-block-page @ 0  swapw
+  rd-block-page @
+  ?dup 0= if
+    1 0  ff  fill
+    false exit
+  then
+  0  swapw
   1 0 <move-shadow
   false ;
 : rd-write ( w:a -- err? )
@@ -186,8 +191,8 @@ create cache-table
   0 to cache-used ;
 : save-buffers ( -- )
   cache-used for
-    0 i 1- a*  cache-table +w  cache-write
-    if
+    0 i 1- a*  cache-table +w
+    cache-write if
       ." failed to write block "
       0 i 1- a* 1+ 1+  cache-table +w
       8 dump cr
@@ -232,6 +237,28 @@ create cache-table
   then ;
 : save! ( -- )
   save  save-buffers ;
+# cmp (t), y
+# beq .found
+# iny
+# bne .again
+# .found: tya
+# inx inx  sta (stack), x  rts
+: find-page ( w:a c -- n ) [
+  2 s>a  a>t  3 s>a  1 a>t+
+  0 ldyimm
+  tos>a
+  target>
+  t cmp (y)
+  0 beq ref> swapw
+  iny
+  <ref bne
+  <target
+  inx inx  tya  a>tos
+  ] ;
+: scr-info ( -- )
+  text-size .w ." text bytes, "
+  block skip  ff find-page .
+  ." compressed" cr ;
 : edit ( -- )
   false to text-modified
   scr blk !block

@@ -109,6 +109,8 @@ create cr-str 0d ,
   forw @+ append-char nextw
   dropw ;
 
+: .jiffy
+  0 a0 @ .h  0 a1 @ .h  0 a2 @ .h ;
 : status
   here@w ['] ,2 -w
-  .w ." bytes used" cr ;
+  .w ." bytes used, time " .jiffy cr ;
