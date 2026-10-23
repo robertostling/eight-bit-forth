@@ -24,78 +24,6 @@ create bs-key 10 allot
 #   ff d0 do  i free-page drop  1 +loop ;
 # add-shadow-ram
 
-# entry in cache-table (10 bytes):
-# state (1 byte)
-# RAM page (1 byte)
-# block# (8 bytes)
-
-: mem= ( w:a w:b -- t/f )
-  mem-compare 0= ;
-
-0 var cache-state-free
-1 var cache-state-used
-2 var cache-state-dirty
-8 var cache-entries  # max $19
-0 var cache-allocated
-: a*  dup 2* 2* + 2* ;
-create cache-table
-  cache-entries a* allot
-
-: cache-init
-  cache-table  1 0  0 fill ;
-: cache-lookup ( -- [w:header] err? )
-  cache-entries for
-    0 i a* cache-table +w
-    dupw @ 0<> if
-      dupw 1+w 1+w  blk  mem= if
-        r>drop false exit
-      then
-    then
-    dropw next
-    true ;
-: cache-write ( w:header -- err? )
-  dupw @ cache-state-dirty <> if
-    dropw  false exit
-  then
-  dupw 1+w  dupw 1+w  blk  0 8 <move
-  @ 0  block-write  if
-    dropw true exit
-  then
-  cache-state-used !  false ;
-: cache-free-oldest ( -- err? )
-  cache-table cache-write ;
-: cache-new-entry ( -- [w:header] err? )
-  cache-allocated cache-entries = if
-    cache-free-oldest ?dup if exit then
-  then
-  cache-table dupw 0 a +w swapw
-  0 cache-allocated a* <move
-  cache-table  0 cache-allocated a* +w
-  cache-allocated 1+ to cache-allocated
-  false ;
-: cache-allocate ( w:header -- w:a )
-  dupw cache-state-used !
-  1+w dupw alloc-page dup >r !
-  1+w  blk swapw  0 8 <move
-  r> 0 ;
-: cache-address ( -- [w:a] err? )
-  cache-lookup if
-    cache-new-entry ?dup if exit then
-    cache-allocate
-  else
-    1+w @  0
-  then
-  false ;
-: cache-flush ( -- )
-  cache-allocated for
-    0 i a*  cache-table +w  cache-write
-    if
-      ." failed to flush block "
-      0 i a* 1+ 1+  cache-table +w
-      8 dump cr
-    then
-  next ;
-
 : rd-block-page ( -- w:a )
   blk7 @  rd-page swap ;
 : rd-read ( w:a -- err? )
@@ -198,40 +126,119 @@ create block-devices
 : block-write ( w:a -- err? )
   fn-write block-fn ;
 
+# entry in cache-table (10 bytes):
+# state (1 byte)
+# RAM page (1 byte)
+# block# (8 bytes)
+
+0 var cache-state-free
+1 var cache-state-used
+2 var cache-state-dirty
+8 var cache-entries  # max $19
+0 var cache-used
+: a*  dup 2* 2* + 2* ;
+create cache-table
+  cache-entries a* allot
+
+: cache-lookup ( -- [w:header] err? )
+  cache-entries for
+    0 i 1- a* cache-table +w
+    dupw @ 0<> if
+      dupw 1+w 1+w  blk  8 mem= if
+        r>drop false exit
+      then
+    then
+    dropw next
+    true ;
+: cache-write ( w:header -- err? )
+  dupw @ cache-state-dirty <> if
+    dropw  false exit
+  then
+  dupw 1+w  dupw 1+w  blk  0 8 <move
+  @ 0  block-write  if
+    dropw true exit
+  then
+  cache-state-used !  false ;
+: cache-free ( w:header -- err? )
+  dupw cache-write
+  if  dropw true exit  then
+  dupw 1+w @ free-page
+  cache-state-free -rot !
+  false ;
+: cache-new-entry ( -- [w:header] err? )
+  cache-used cache-entries = if
+    cache-table cache-free ?dup skip
+    cache-used 1- to cache-used
+    cache-table dupw 0 a +w swapw
+    0 cache-used a* <move
+  then
+  cache-table  0 cache-used a* +w
+  cache-used 1+ to cache-used
+  false ;
+: cache-allocate ( w:header -- w:a )
+  dupw cache-state-used -rot !
+  1+w dupw alloc-page dup >r -rot !
+  1+w  blk swapw  0 8 <move
+  r> 0 ;
+: empty-buffers ( -- )
+  cache-table  0 cache-entries a*
+  0 fill
+  0 to cache-used ;
+: save-buffers ( -- )
+  cache-used for
+    0 i 1- a*  cache-table +w  cache-write
+    if
+      ." failed to write block "
+      0 i 1- a* 1+ 1+  cache-table +w
+      8 dump cr
+    then
+  next ;
+: block ( -- [w:a] err? )
+  cache-lookup if
+    cache-new-entry ?dup skip
+    cache-allocate
+    dupw block-read ?dup if
+      dropw true exit
+    then
+  else
+    1+w @ 0
+  then
+  false ;
+: update ( -- )
+  cache-lookup skip
+  cache-state-dirty -rot ! ;
+: flush ( -- )
+  save-buffers empty-buffers ;
+
 : uncompress-text ( w:a -- )
   text-buffer dupw 2 ff +w uncompress
   text-buffer -w  tow text-size ;
 : compress-text ( page -- err? )
   >r  text-buffer dupw text-size +w
   r> compress ;
-  
+
 : save ( -- )
   scr-valid not if
     ." no screen open" cr exit
   then
   text-modified so
-  alloc-page dup
-  compress-text ?dup if
-    swap free-page
+  scr blk !block
+  block if
+    ." error loading block" cr exit
+  then
+  update
+  drop compress-text ?dup if
     ." compress error: " . cr exit
-  then
-  dup 0
-  scr blk !block
-  block-write if
-    free-page
-    ." write error" cr exit
-  then
-  free-page ;
-: cache ( -- )
+  then ;
+: save! ( -- )
+  save  save-buffers ;
+: edit ( -- )
   false to text-modified
-  alloc-page
-  dup 0
   scr blk !block
-  block-read if
-    free-page ." read error" exit
+  block if
+    ." read error" exit
   then
-  dup 0 uncompress-text
-  free-page
+  uncompress-text
   true to scr-valid ;
 : +scr ( n -- )
   0 swap  scr6 @w
@@ -252,17 +259,17 @@ create block-devices
   interpret ;
 : loads ( n -- )
   for
-    discard cache run
+    edit run
     1 +scr
   next ;
-: hex ( w:a n -- )
+: hex# ( w:a n -- )
   for
     char c>hex 4 <<  char c>hex  +  !+
   next dropw ;
-: block# ( w:a -- ) 8 hex ;
-: bs-key# ( -- ) bs-key 10 hex ;
-: go ( -- ) cache p ;
-: go# ( -- ) discard  scr block#  go ;
-: go> ( n -- ) discard  +scr  go ;
-: <go ( n -- ) discard  -scr  go ;
-: go* ( n -- ) discard  scr7 !  go ;
+: block# ( w:a -- ) 8 hex# ;
+: bs-key# ( -- ) bs-key 10 hex# ;
+: go ( -- ) edit p ;
+: go# ( -- ) save  scr block#  go ;
+: go> ( -- ) save  1 +scr  go ;
+: <go ( -- ) save  1 -scr  go ;
+: go* ( n -- ) save  scr7 !  go ;

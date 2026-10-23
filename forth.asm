@@ -387,8 +387,8 @@ code_fill:
     dec .count+1
     bne .full_page
 .last_page:
-    ldy .count+0
     lda stack+0, x
+    ldy .count+0
     beq .done
 -   sta (.trg), y
     dey

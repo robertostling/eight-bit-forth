@@ -563,3 +563,5 @@
 : !nl ( x y z ... w:a n -- )
   for  dup>rw ! r>w 1+w  next
   dropw ;
+: mem= ( w:a w:b n -- t/f )
+  mem-compare 0= ;
