@@ -29,13 +29,72 @@ create bs-key 10 allot
 # RAM page (1 byte)
 # block# (8 bytes)
 
-alloc-page 0 varw cache-table
+: mem= ( w:a w:b -- t/f )
+  mem-compare 0= ;
+
 0 var cache-state-free
 1 var cache-state-used
 2 var cache-state-dirty
+8 var cache-entries  # max $19
+0 var cache-allocated
+: a*  dup 2* 2* + 2* ;
+create cache-table
+  cache-entries a* allot
 
 : cache-init
   cache-table  1 0  0 fill ;
+: cache-lookup ( -- [w:header] err? )
+  cache-entries for
+    0 i a* cache-table +w
+    dupw @ 0<> if
+      dupw 1+w 1+w  blk  mem= if
+        r>drop false exit
+      then
+    then
+    dropw next
+    true ;
+: cache-write ( w:header -- err? )
+  dupw @ cache-state-dirty <> if
+    dropw  false exit
+  then
+  dupw 1+w  dupw 1+w  blk  0 8 <move
+  @ 0  block-write  if
+    dropw true exit
+  then
+  cache-state-used !  false ;
+: cache-free-oldest ( -- err? )
+  cache-table cache-write ;
+: cache-new-entry ( -- [w:header] err? )
+  cache-allocated cache-entries = if
+    cache-free-oldest ?dup if exit then
+  then
+  cache-table dupw 0 a +w swapw
+  0 cache-allocated a* <move
+  cache-table  0 cache-allocated a* +w
+  cache-allocated 1+ to cache-allocated
+  false ;
+: cache-allocate ( w:header -- w:a )
+  dupw cache-state-used !
+  1+w dupw alloc-page dup >r !
+  1+w  blk swapw  0 8 <move
+  r> 0 ;
+: cache-address ( -- [w:a] err? )
+  cache-lookup if
+    cache-new-entry ?dup if exit then
+    cache-allocate
+  else
+    1+w @  0
+  then
+  false ;
+: cache-flush ( -- )
+  cache-allocated for
+    0 i a*  cache-table +w  cache-write
+    if
+      ." failed to flush block "
+      0 i a* 1+ 1+  cache-table +w
+      8 dump cr
+    then
+  next ;
 
 : rd-block-page ( -- w:a )
   blk7 @  rd-page swap ;
