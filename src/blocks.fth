@@ -24,6 +24,19 @@ create bs-key 10 allot
 #   ff d0 do  i free-page drop  1 +loop ;
 # add-shadow-ram
 
+# entry in cache-table (10 bytes):
+# state (1 byte)
+# RAM page (1 byte)
+# block# (8 bytes)
+
+alloc-page 0 varw cache-table
+0 var cache-state-free
+1 var cache-state-used
+2 var cache-state-dirty
+
+: cache-init
+  cache-table  1 0  0 fill ;
+
 : rd-block-page ( -- w:a )
   blk7 @  rd-page swap ;
 : rd-read ( w:a -- err? )

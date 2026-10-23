@@ -315,6 +315,95 @@ code_mover:
     rts
     }
 
+
+    ; mem-compare ( w:src w:trg n -- -1|0|1 )
+    +create_word_header "mem-compare", 0
+code_memeq:
+    !zone {
+    .trg = zp_temp+0
+    .src = zp_temp+2
+    .count = zp_temp+4
+    lda stack+1, x
+    sta .trg+0
+    lda stack+2, x
+    sta .trg+1
+    lda stack+3, x
+    sta .src+0
+    lda stack+4, x
+    sta .src+1
+    lda stack+0, x
+    sta .count
+    ldy #0
+.next:
+    lda (.src), y
+    cmp (.trg), y
+    bcc .less
+    bne .greater
+    iny
+    cpy .count
+    bne .next
+.equal:
+    lda #0
+    beq .done
+.less:
+    lda #$ff
+    bne .done
+.greater:
+    lda #1
+.done:
+    inx
+    inx
+    inx
+    inx
+    sta stack+0, x
+    rts
+    }
+
+
+    ; fill ( w:trg w:n c -- )
+    +create_word_header "fill", 0
+code_fill:
+    !zone {
+    .trg = zp_temp+0
+    .count = zp_temp+2
+    lda stack+3, x
+    sta .trg+0
+    lda stack+4, x
+    sta .trg+1
+    lda stack+1, x
+    sta .count+0
+    lda stack+2, x
+    beq .last_page
+    sta .count+1
+    ldy #0
+    lda stack+0, x
+.full_page:
+-   sta (.trg), y
+    iny
+    sta (.trg), y
+    iny
+    bne -
+    inc .trg+1
+    dec .count+1
+    bne .full_page
+.last_page:
+    ldy .count+0
+    lda stack+0, x
+    beq .done
+-   sta (.trg), y
+    dey
+    bne -
+    sta (.trg), y
+.done:
+    inx
+    inx
+    inx
+    inx
+    inx
+    rts
+    }
+
+
     ; MOVE-SHADOW ( W:SRC W:TRG W:N -- )
     +create_word_header "<move-shadow", 0
 code_lmove_shadow:
