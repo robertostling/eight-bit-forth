@@ -1,5 +1,5 @@
 # code
-# Line editor variables and utils
+( Line editor variables and utils )
 : cls 5 emit 0e emit 93 emit ;
 : yes-no ( -- t/f )
   key
@@ -26,7 +26,7 @@ text-modified: boolean indicator of
 editor-offset: used internally in
  line editor )
 # code
-# Line editor, source listing
+( Line editor, source listing )
 : list-line ( w:a -- w:a' )
   dupw text-buffer -w
   text-size =w skip
@@ -52,7 +52,7 @@ l: main listing word, prints line
  numbers and overwrite commands for
  easy editing )
 # code
-# Line editor text manipulation
+( Line editor text manipulation )
 : text-start?  editor-offset 0=w ;
 : text-end?
   editor-offset text-size =w ;
@@ -71,7 +71,7 @@ l: main listing word, prints line
   0 0 tow editor-offset
   for text-line> next ;
 # code
-# Line editor delete
+( Line editor delete )
 : editor-offsets
   ( w:o1 w:o2 -- w:a1 w:a2 )
   >rw
@@ -88,7 +88,7 @@ l: main listing word, prints line
   text-size r>w -w tow text-size
   touch-text ;
 # code
-# Line editor insert
+( Line editor insert )
 : ins ( w:a w:count n -- )
   ( assume inserted line ends with cr )
   text-seek
@@ -101,7 +101,7 @@ l: main listing word, prints line
   swapw <move
   touch-text ;
 # code
-# Line editor commands
+( Line editor commands )
 create cr-str 0d ,
 : rest-of-line ( -- w:a w:count )
   input@w  begin
@@ -122,7 +122,7 @@ create cr-str 0d ,
 : w ( n -- )
   >r rest-of-line r> ins ;
 # code
-# Line editor commands
+( Line editor commands )
 : append-char ( c -- )
   text-buffer text-size +w !
   text-size 1+w tow text-size
@@ -134,7 +134,7 @@ create cr-str 0d ,
   dropw ;
 : p  text-buffer text-size typew ;
 # code
-# Line editor/UI utilities
+( Line editor/UI utilities )
 : .jiffy
   0 a0 @ .h  0 a1 @ .h  0 a2 @ .h ;
 : status
@@ -142,7 +142,7 @@ create cr-str 0d ,
   .w ." bytes used, time " .jiffy cr ;
 : drop-all fc sp! ;
 # code
-# Line editor/UI utilities
+( Line editor/UI utilities )
 : check-stack
   0 sp@ 0 3 <w if
     cr ." stack overflow" cr  fc sp!
