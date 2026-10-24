@@ -6,37 +6,44 @@ with a few features that together makes it one-of-a-kind system:
  * 8-bit data stack for minimal overhead
  * subroutine threading with some optimizations, including tail call
    elimination, and inlining for some words
- * minimalistic assembly language kernel with only 24 built-in words
- * nearly the whole system compiles itself at start, from a compressed source
-   block attached to the kernel binary
+ * minimalistic assembly language kernel with only about 35 built-in words
+ * nearly the whole system compiles itself within a few seconds at
+   boot, from a compressed RAM drive containing source blocks
  * very fast compiler using hashed dictionaries
- * simple editor capable of saving and loading from disk and tape
+ * simple line editor, fast text compression and decompression to
+   block storage
+ * UDP/IP support over SLIP, connect to the Internet via RS-232 with
+   only standard C64 hardware
+ * supports my `miniblock` network block storage
  * you can change the code of the core system and recompile in a couple of
    seconds -- while running!
 
 When you run the executable, which also includes the compressed Forth
 source code of the system, the following takes place within the span
-of about four seconds:
+of about nine seconds:
 
  0. The kernel generates the AES S-box in memory, used for Forth
     dictionary hashing.
- 1. The kernel uncompresses the source code into memory, and starts
-    compiling it.
+ 1. The kernel sets up a RAM drive of source blocks, and starts
+    compiling.
  2. A simple assembler is compiled.
  3. A more complete vocabulary is defined using the assembler, which
     allows definitions in high-level Forth.
  4. Libraries and applications are compiled using mostly high-level
     Forth, including the editor.
 
-Steps 2, 3 and 4 are technically the same thing: creating new Forth
-definitions from the code in `kernel.fth`. This type of flexibility
-and mixing of low- and high-level code is one of the strengths of
-Forth.
+Steps 2, 3 and 4 are technically all just compiling Forth code.  This
+type of flexibility and mixing of low- and high-level code is one of
+the strengths of Forth.
 
 Also included (as separate source files) is a library for cooperative
 multitasking, a sound and graphics library, and a morse code
 generator.
 
+## Note
+
+***The information below is currently outdated.*** I am in the process
+of updating the documentation.
 
 ## Running some demos
 
