@@ -1,3 +1,5 @@
+# code
+( KERNAL call wrapper )
 variablew kernal-routine
 : kernal-call [ kernal-routine jmpi ] ;
 : kernal ( a x y c w:adr -- a x y c )
@@ -11,6 +13,8 @@ variablew kernal-routine
   tya a>tos  1 t+>a a>nos  t>a 3 a>s
   0 lda imm  rol impl  a>
   ] ;
+# code
+( KERNAL calls 1 )
 : kernal-open ( -- )
   0 0 0 0  ff c0 kernal  dropw dropw ;
 : kernal-close ( log -- )
@@ -26,6 +30,8 @@ variablew kernal-routine
 : kernal-chkin ( fileno -- )
   0 swap 0 0  ff c6 kernal
   dropw dropw ;
+# code
+( KERNAL calls 2 )
 : kernal-load
   ( w:start -- w:last/errno errf )
   0 -rot swap 0  ff d5 kernal 
@@ -42,9 +48,8 @@ variablew kernal-routine
   >a zsave 1+ sta zp
   ] zsave -rot  0
   ff d8 kernal  nip nip ;
-: kernal-key
-  kernal-getin ?dup skip kernal-key ;
-: key maker kernal-key ;
+# code
+( KERNAL calls, file scratching )
 20 array filename-buffer
 : prepend-scratch ( w:name -- )
   dupw @ dup 2 +  0 filename-buffer !
@@ -60,6 +65,8 @@ variablew kernal-routine
   f swap f kernal-setlfs
   kernal-open
   f kernal-close ;
+# code
+( Time and cursor management )
 : jiffy@w 0 a1 @w swap ;
 : jiffys 0 swap jiffy@w +w
   begin jiffy@w overw >=w until
@@ -71,15 +78,17 @@ variablew kernal-routine
 : cursor! ( row col -- )
   0 -rot 0  ff f0 kernal
   dropw dropw ;
+# code
+( KERNAL line buffer )
 2 0 varw kernal-line-buf
-: fix-upper ( c -- c' )
-  # not needed anymore
-  ( dup 80 < skip  60 - ) ;
 : kernal-read-line ( -- )
   kernal-line-buf 1+w begin
-    kernal-chrin fix-upper dup >r
+    kernal-chrin dup >r
     !+
     r> 0d = if
       nip  1-  kernal-line-buf !  exit
     then
   again ;
+: kernal-key
+  kernal-getin ?dup skip kernal-key ;
+: key maker kernal-key ;
