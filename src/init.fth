@@ -1,3 +1,5 @@
+# code
+# Main block
 : interpret-line
   countw overw +w interpret ;
 : repl begin
@@ -8,9 +10,6 @@
   again ;
 
 status
-
-# before reducing macros: 3e66 bytes, time 211
-# with if -> ?0branch: 3e26 bytes, time 219
 
 serial-init
 cr .( initialized rs-232) cr
