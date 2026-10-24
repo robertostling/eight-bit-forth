@@ -36,6 +36,3 @@ create checksum checksum-size allot
 # Macros (larger but faster):
 
 : if pre>a 0 beq ref> ; immediate
-: else
-  clc 0 bcc ref>  swapw
-  tail; then immediate
