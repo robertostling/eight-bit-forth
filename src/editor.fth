@@ -145,7 +145,8 @@ create cr-str 0d ,
   again ;
 : status
   here@w ['] ,2 -w
-  .jiffy ." : heap " .w ." bytes, "
+  .jiffy ." : heap (" here@w .w ." )"
+  .w ." bytes, "
   free-pages 0 .w ." bytes free"
   cr ;
 

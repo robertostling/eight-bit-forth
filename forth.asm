@@ -45,7 +45,6 @@
     !address stack          = $ce00     ; 256 bytes
     !address sbox           = $cd00     ; 256 bytes
     !address hash_table     = $cb00     ; 512 bytes
-    ;!address free_list      = $ca00     ; 256 bytes
     !address text_buffer    = $c800     ; 768 bytes
     !address ram_drive      = $c700     ; 256 bytes
     !address pair_start     = $c500

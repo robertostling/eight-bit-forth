@@ -45,3 +45,18 @@ create checksum checksum-size allot
 
 : to  postpone (to) ' 0 6 +w ,2 ; immediate
 : tow  postpone (tow) ' 0 6 +w ,2 ; immediate
+
+# More compact if statement, but slower:
+
+: ?0branch [
+  pla a>t  pla 1 a>t+
+  t 1+zpw
+  pre>a 0 bne ref>
+  0 ldyimm  t lda (y)
+  2 bpl  t 1+ dec zp
+  clc  t adc zp  t sta zp
+  2 bcc  t 1+ inc zp
+  <target
+  1 t+>a pha  t>a pha ] ;
+: if litw [ ' ?0branch >code ,2 ]
+  jsr  0 ,  ref> ; immediate

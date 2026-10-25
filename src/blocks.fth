@@ -193,7 +193,7 @@ create cache-table
   cache-entries a* allot
 
 : cache-lookup ( -- [w:header] err? )
-  cache-entries for
+  cache-used for
     0 i 1- a* cache-table +w
     dupw @ 0<> if
       dupw 1+w 1+w  blk  8 mem= if
@@ -373,5 +373,4 @@ flushed and all entries moved back.
 : go> ( -- ) save  1 +scr  go ;
 : <go ( -- ) save  1 -scr  go ;
 : go* ( n -- ) save  scr7 !  go ;
-
 # .( blocks:) debug-info key drop

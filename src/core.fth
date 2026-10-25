@@ -343,22 +343,11 @@
   r>w r>w !w ;
 # code
 ( Conditionals )
-: ?0branch [
-  pla a>t  pla 1 a>t+
-  t 1+zpw
-  pre>a 0 bne ref>
-  0 ldyimm  t lda (y)
-  clc  t adc zp  t sta zp
-  <target
-  1 t+>a pha  t>a pha ] ;
-: if litw [ ' ?0branch >code ,2 ]
-  jsr  0 ,  ref> ; immediate
+: if pre>a 0 beq ref> ; immediate
 : disable-tail
   0 zoptimize @ 7f and 0 zoptimize ! ;
 : then <target disable-tail
   ; immediate
-# code
-( Conditionals, compiler )
 : else
   clc 0 bcc ref>  swapw
   tail; then immediate
