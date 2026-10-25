@@ -1,5 +1,5 @@
 # doc
-( Debugging utils )
+( Debugging utils, checksums )
 : mix8 ( x -- y )
   [ tos>a  tay
   sbox> 0 lda adr,y  a>tos ] ;
@@ -15,9 +15,8 @@
 : debug-info
   cd page-checksum . here@w .w cr
   10 here@w drop pages-checksums ;
-# debug-info
 # code
-# adding this block makes things work again... why?
+( Listing words )
 : .name ( w:a -- )
   >name type ;
 : .name-next ( w:a -- )
@@ -30,6 +29,7 @@
     dup hash-head .name-next
   1+ ?dup 0= until ;
 # code
+( Stack checking and tracing )
 : drop-all fc sp! ;
 : check-stack
   0 sp@ 0 3 <w if

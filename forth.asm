@@ -389,10 +389,9 @@ code_fill:
     lda stack+0, x
     ldy .count+0
     beq .done
--   sta (.trg), y
-    dey
-    bne -
+-   dey
     sta (.trg), y
+    bne -
 .done:
     inx
     inx

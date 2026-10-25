@@ -229,7 +229,7 @@ flushed and all entries moved back.
 : cache-free ( w:header -- err? )
   dupw cache-write
   if  dropw true exit  then
-  dupw 1+w @ free-page
+  dupw 1+w @ free-page drop
   cache-state-free -rot !
   false ;
 # code
@@ -373,4 +373,3 @@ flushed and all entries moved back.
 : go> ( -- ) save  1 +scr  go ;
 : <go ( -- ) save  1 -scr  go ;
 : go* ( n -- ) save  scr7 !  go ;
-# .( blocks:) debug-info key drop

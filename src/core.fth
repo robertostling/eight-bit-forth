@@ -537,7 +537,7 @@
 : !+w ( w:a w:x -- w:a+2 )
   overw !w 1+w 1+w ;
 # code
-( Misc utilities )
+( Misc utilities 1 )
 : @+ ( w:a -- w:a+1 c )
   dupw 1+w swapw @ ;
 : @+w ( w:a -- w:a+2 w:x )
@@ -557,7 +557,7 @@
 : typew ( w:a w:n -- )
   forw @+ emit nextw dropw ;
 # code
-( Misc utilities )
+( Misc utilities 2 )
 : dup!+ ( w:a c -- w:a+1 c )
   >r  dupw r@ -rot !  1+w r> ;
 : fillw ( w:a c w:n -- )

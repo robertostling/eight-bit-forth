@@ -1,5 +1,4 @@
 # code
-cr status
 ( REPL and utils )
 : interpret-line
   countw overw +w interpret ;
@@ -12,10 +11,7 @@ cr status
   again ;
 # code
 ( Startup code )
-# cr status
-
-# .( init checksums:)
-# debug-info key drop
+ cr status
 
 serial-init
 cr .( initialized rs-232) cr
