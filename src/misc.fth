@@ -36,3 +36,7 @@ create checksum checksum-size allot
 # Macros (larger but faster):
 
 : if pre>a 0 beq ref> ; immediate
+
+# : add-shadow-ram ( -- )
+#   ff d0 do  i free-page drop  1 +loop ;
+# add-shadow-ram

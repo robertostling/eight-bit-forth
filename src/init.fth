@@ -9,7 +9,7 @@
     kernal-line-buf interpret-line
   again ;
 
-status
+cr status
 
 serial-init
 cr .( initialized rs-232) cr

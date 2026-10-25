@@ -55,10 +55,13 @@ def main():
                     block = Block('doc', name, lineno=lineno+1)
                     blocks.append(block)
                 else:
+                    if block is None:
+                        print(f'{name}:{lineno} lacks #code or #doc')
                     length = len(line.rstrip())
                     if length > 39:
                         print(f'{name}:{lineno+1} is {length} bytes')
                     block.append(line)
+            block = None
 
     output_blocks = [block for block in blocks
                      if args.include_docs or block.category == 'code']
@@ -72,6 +75,7 @@ def main():
         print(f'{block.reference()}  {len(ascii)} -> {len(compressed)} bytes '
               f'({percent:.1f}%)')
         if len(ascii) > 0x2ff or len(compressed) > 0xfe:
+            print(block)
             print(f'Invalid size, aborting.')
             sys.exit(1)
         total_ascii += len(ascii)

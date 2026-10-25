@@ -1,16 +1,10 @@
-# BUILTIN=src/core.fth src/kernal.fth src/source.fth src/editor.fth src/ip.fth src/init.fth
-BUILTIN=src/core.fth src/kernal.fth src/editor.fth src/ip.fth src/blocks.fth init-private.fth
-
-init-private.fth: src/init.fth src/private.fth
-	cat src/private.fth src/init.fth >init-private.fth
+BUILTIN=src/core.fth src/kernal.fth src/editor.fth src/ip.fth src/blocks.fth private.fth src/init.fth
 
 blocks.compressed: scripts/split_words.py $(BUILTIN)
-	python3 scripts/split_words.py $(BUILTIN)
+	python3 scripts/split_words.py -o blocks.compressed -f merged $(BUILTIN)
 
 # The sources specified here are compressed and included in main binary.
 forth.prg: forth.asm blocks.compressed # $(BUILTIN)
-	# python3 scripts/merge_sources.py $(BUILTIN) >kernel-cr.fth
-	# python3 scripts/compress.py kernel-cr.fth kernel-cr.compressed
 	acme forth.asm
 
 # Tested with Kung Fu Flash
