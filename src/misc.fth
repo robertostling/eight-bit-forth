@@ -40,3 +40,8 @@ create checksum checksum-size allot
 # : add-shadow-ram ( -- )
 #   ff d0 do  i free-page drop  1 +loop ;
 # add-shadow-ram
+
+# Non state smart to/tow
+
+: to  postpone (to) ' 0 6 +w ,2 ; immediate
+: tow  postpone (tow) ' 0 6 +w ,2 ; immediate

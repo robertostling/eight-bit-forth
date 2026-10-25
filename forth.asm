@@ -1367,7 +1367,11 @@ init_memory:
     sta zp_temp+0
     sta zp_temp+2
 
-.add_block:
+.add_page:
+    ; avoid pages used for RS-232 buffers
+    cmp #($9e-1)
+    beq .skip_pages
+.add_page_no_check:
     ;lda zp_temp+2
     sta (zp_temp+0), y
 
@@ -1375,10 +1379,14 @@ init_memory:
     sta zp_temp+2
     inc zp_temp+1
     cmp #last_free_page
-    bne .add_block
+    bne .add_page
 
     sta free_regular_head
     rts
+.skip_pages:
+    inc zp_temp+1
+    inc zp_temp+1
+    jmp .add_page_no_check
     }
 
 
@@ -1397,7 +1405,10 @@ code_alloc_page:
     sty zp_temp+0
     lda (zp_temp+0), y
     sta free_regular_head
-    rts
+    bne +
+    lda #4
+    jmp code_error_a
++   rts
     }
 
     ; FREE-PAGE ( PAGE -- ERR? )

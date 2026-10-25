@@ -373,3 +373,5 @@ flushed and all entries moved back.
 : go> ( -- ) save  1 +scr  go ;
 : <go ( -- ) save  1 -scr  go ;
 : go* ( n -- ) save  scr7 !  go ;
+
+# .( blocks:) debug-info key drop

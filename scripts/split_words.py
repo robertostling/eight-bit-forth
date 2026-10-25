@@ -68,12 +68,14 @@ def main():
 
     total_ascii = 0
     total_compressed = 0
-    for block in output_blocks:
+    for idx, block in enumerate(output_blocks):
         ascii = block.ascii()
         compressed = block.compress()
         percent = 100*len(compressed)/len(ascii)
-        print(f'{block.reference()}  {len(ascii)} -> {len(compressed)} bytes '
+        print(f'{block.reference()} ${idx:x}: '
+              f'{len(ascii)} -> {len(compressed)} bytes '
               f'({percent:.1f}%)')
+        print(f'    {block.lines[0]}')
         if len(ascii) > 0x2ff or len(compressed) > 0xfe:
             print(block)
             print(f'Invalid size, aborting.')

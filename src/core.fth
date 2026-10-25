@@ -494,10 +494,16 @@
 ( High-level compiler )
 : last 0 zlast ;
 : literalw postpone litw ,2 ; immediate
-: to postpone (to)
-  ' 0 6 +w ,2 ; immediate
-: tow postpone (tow)
-  ' 0 6 +w ,2 ; immediate
+: to  ' 0 6 +w  compiling if
+    postpone (to)  ,2
+  else
+    !
+  then ; immediate
+: tow  ' 0 6 +w  compiling if
+    postpone (tow)  ,2
+  else
+    !w
+  then ; immediate
 : ['] ' postpone literalw ; immediate
 ( does> )
 : here>code last @w >code here!w ;

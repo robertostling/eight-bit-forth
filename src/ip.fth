@@ -1,10 +1,11 @@
 # code
 ( RS-232/SLIP variables )
-7 var 600baud ( largest that works here )
+
+7 var 600baud ( faster means problems )
 2 var serial-file
 0 var default-file
 
-02 40 varw packet-max-size
+01 40 varw packet-max-size
 0 0 varw packet-read-size
 0 0 varw packet-write-size
 
@@ -17,7 +18,6 @@ packet-max-size allotw
 create my-ip c0 , a8 , 0 , 1 ,
 create sunet-ip 25 , 9c , c0 , 32 ,
 create gw-ip c0 , a8 , 0 , 2 ,
-
 # code
 ( RS-232 initialization )
 create fn-serial  2 , 600baud , 0 ,
@@ -29,14 +29,12 @@ create fn-serial  2 , 600baud , 0 ,
 : serial-in ( -- c valid? )
   kernal-getin  02 97 @ 8 and 0= ;
 
-: use-terminal  default-file kernal-chkin ;
+: use-terminal
+  default-file kernal-chkin ;
 : use-serial  serial-file kernal-chkin ;
-
 # code
 ( Writing packets with SLIP )
 : slip-emit ( c -- )
-  ( default-file kernal-chkout
-  ." [" dup .h ." ]" space )
   serial-file kernal-chkout
   dup c0 = if
     drop db emit dc emit exit
@@ -48,12 +46,12 @@ create fn-serial  2 , 600baud , 0 ,
 : slip-write-packet ( -- )
   serial-file kernal-chkout
   c0 emit
-  packet-write-buf packet-write-size forw
+  packet-write-buf packet-write-size
+  forw
     dupw @ slip-emit  1+w
   nextw dropw
   c0 emit
   default-file kernal-chkout ;
-
 # code
 ( Reading packets with SLIP  )
 0 var slip-state-start
@@ -73,13 +71,14 @@ slip-state-start var slip-rx-state
   jiffy@w 1 2c +w tow slip-timeout ;
 # code
 ( SLIP receiving primitives )
-: slip-rx-got
+: slip-rx-got ( c -- )
   packet-read-size packet-max-size =w if
     drop
     slip-state-over to slip-rx-state
     exit
   then
-  packet-read-size dupw 1+w tow packet-read-size
+  packet-read-size dupw 1+w
+  tow packet-read-size
   packet-read-buf +w !
   slip-set-timeout ;
 : slip-start
@@ -101,8 +100,12 @@ slip-state-start var slip-rx-state
   slip-rx-got ;
 : slip-esc
   slip-state-wait to slip-rx-state
-  dup dc = if  drop c0 slip-rx-got exit  then
-  dup dd = if  drop db slip-rx-got exit  then
+  dup dc = if
+    drop c0 slip-rx-got exit
+  then
+  dup dd = if
+    drop db slip-rx-got exit
+  then
   slip-state-err to slip-rx-state ;
 # code
 ( SLIP packet reception )
@@ -147,7 +150,8 @@ slip-state-start var slip-rx-state
 : process-udp
   ." udp message: "
   packet-read-buf 0 1c +w
-  packet-read-size overw -w nip type cr ;
+  packet-read-size overw -w nip
+  type cr ;
 # code
 ( Process IP packet )
 : process-ip
@@ -181,7 +185,8 @@ slip-state-start var slip-rx-state
 : ,@ ( w:a -- w:a+1 )
   dupw @ , 1+w ;
 : 4,@ ,@ ,@ ,@ ,@ ;
-: ip-build-header ( w:src w:dest proto -- )
+: ip-build-header
+  ( w:src w:dest proto -- )
   here@w >rw
   packet-write-buf here!w
   45 , 0 , packet-write-size swap ,2
@@ -189,7 +194,8 @@ slip-state-start var slip-rx-state
   40 , ( proto ) , 0 , 0 ,
   swapw 4,@ dropw 4,@ dropw
   r>w here!w
-  packet-write-buf  0 14  ip-checksum swap
+  packet-write-buf  0 14
+  ip-checksum swap
   packet-write-buf  0 a +w  !w
   ;
 # code
@@ -204,7 +210,8 @@ ab ba varw ping-id
   ping-id swap !+w  ping-seq swap !+w
   8 for  i !+  next
   dropw
-  packet-write-buf 0 14 +w  0 10  ip-checksum swap
+  packet-write-buf 0 14 +w  0 10
+  ip-checksum swap
   packet-write-buf 0 16 +w !w
   slip-write-packet
   ping-seq 1+w tow ping-seq
@@ -221,8 +228,8 @@ ab ba varw ping-id
 : packet-info
   ." read packet with " packet-read-size .w
   ." bytes" cr
-  packet-read-buf packet-read-size nip dump cr
-  ." header checksum: "
+  packet-read-buf packet-read-size nip
+  dump cr  ." header checksum: "
   packet-read-buf 0 14 ip-checksum .w cr ;
 # code
 ( UDP packet creation utils )
@@ -237,6 +244,9 @@ ab ba varw ping-id
   11 ip-build-header ;
 # code
 ( UDP packet creation utils )
-: udp-copy-payload ( w:data w:size w:offset -- )
+: udp-copy-payload
+  ( w:data w:size w:offset -- )
   packet-write-buf +w 0 1c +w  swapw
   <move ;
+
+# .( ip:) debug-info key drop

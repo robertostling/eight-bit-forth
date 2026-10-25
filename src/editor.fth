@@ -137,16 +137,16 @@ create cr-str 0d ,
 ( Line editor/UI utilities )
 : .jiffy
   0 a0 @ .h  0 a1 @ .h  0 a2 @ .h ;
+: free-pages ( -- n )
+  0  free-list @  begin
+    ?dup so
+    swap 1+ swap
+    0 @
+  again ;
 : status
   here@w ['] ,2 -w
-  .w ." bytes used, time " .jiffy cr ;
-: drop-all fc sp! ;
-# code
-( Line editor/UI utilities )
-: check-stack
-  0 sp@ 0 3 <w if
-    cr ." stack overflow" cr  fc sp!
-  then
-  0 sp@ 0 fc >=w if
-    cr ." stack underflow" cr  fc sp!
-  then ;
+  .jiffy ." : heap " .w ." bytes, "
+  free-pages 0 .w ." bytes free"
+  cr ;
+
+# .( editor:) debug-info key drop
