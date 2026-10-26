@@ -72,12 +72,54 @@ def compress(data):
         i += best_length
     return bytes(output)
 
+
+def compress_beam(data, beam_size, max_offset=159):
+    if beam_size == 1:
+        return compress(data)
+
+    """Compress using beam search to find better encodings than greedy search"""
+    def encode_literal(c):
+        if c == 0x0d:
+            return 0
+        elif 0x20 <= c <= 0x7e:
+            return c - 0x1f
+        else:
+            raise ValueError(f'Unencodable symbol with value ${c:x}')
+
+    def encode_offset(offset):
+        return 0x60 + offset
+
+    beam = [(2,
+             [encode_literal(data[0]), encode_literal(data[1])],
+             [data[0:1], data[1:2]])]
+
+    while True:
+        candidates = []
+        for total_length, encoded, sequences in beam:
+            partial_candidates = {
+                total_length+1: (encode_literal(data[total_length]),
+                                 sequences + [data[total_length:total_length+1]])
+            }
+            for offset in range(min(len(sequences)-1, max_offset)):
+                sequence = sequences[-(offset+2)] + sequences[-(offset+1)]
+                length = total_length + len(sequence)
+                if length not in partial_candidates and sequence == data[total_length:length]:
+                    partial_candidates[length] = (encode_offset(offset), sequences + [sequence])
+            for length, (symbol, merged_sequences) in partial_candidates.items():
+                if length == len(data):
+                    return bytes(encoded + [symbol])
+                candidates.append((length, encoded + [symbol], sequences + [data[total_length:length]]))
+        candidates.sort(reverse=True)
+        beam = candidates[:beam_size]
+
+
+
 def main():
     input_path, output_path = sys.argv[1:]
     with open(input_path, 'rb') as f:
         data = f.read().replace(b'\n', b'\r')
     # print(min(data), max(data))
-    compressed = compress(data)
+    compressed = compress_beam(data, 32)
     print(f"{len(data)} -> {len(compressed)} "
           f"({100.0*len(compressed)/len(data):.1f}%)")
     uncompressed = decompress(compressed)

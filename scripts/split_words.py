@@ -6,6 +6,10 @@ import othercompress
 
 PAD_BYTE = 0xff
 
+# Test with all blocks compressed individually
+# beam size 32: Overall 28972 -> 16785 bytes (57.9%)
+# greedy search: Overall 28972 -> 17187 bytes (59.3%)
+# one of each length in beam, up to 8: Overall 28972 -> 16875 bytes (58.2%)
 
 class Block:
     def __init__(self, category, source, lineno=None):
@@ -13,6 +17,7 @@ class Block:
         self.source = source
         self.lineno = lineno
         self.lines = []
+        self.compressed = None
 
     def reference(self):
         return f'{self.source}:{self.lineno}'
@@ -23,11 +28,14 @@ class Block:
     def ascii(self):
         return ('\r'.join(self.lines) + '\r').encode('ascii')
 
-    def compress(self):
-        return othercompress.compress(self.ascii())
+    def compress(self, beam_size=1):
+        if self.compressed is None:
+            self.compressed = othercompress.compress_beam(self.ascii(), beam_size)
+        return self.compressed
 
     def append(self, line):
         self.lines.append(line.rstrip())
+        self.compressed = None
 
 
 def main():
@@ -36,9 +44,13 @@ def main():
     parser.add_argument('-o', '--output',
                         help='File to write block data to')
     parser.add_argument('-f', '--format',
-                        choices=['merged'], default='merged')
+                        choices=['merged'], default='merged',
+                        help='Format of the output data file')
+    parser.add_argument('--beam-size', default=1, type=int,
+                        help='Beam size in compression')
     parser.add_argument('-d', '--include-docs',
-                        action='store_true')
+                        action='store_true',
+                        help='Include blocks marked with "# doc" in output')
     parser.add_argument('inputs', nargs='+')
     args = parser.parse_args()
 
@@ -70,7 +82,7 @@ def main():
     total_compressed = 0
     for idx, block in enumerate(output_blocks):
         ascii = block.ascii()
-        compressed = block.compress()
+        compressed = block.compress(args.beam_size)
         percent = 100*len(compressed)/len(ascii)
         print(f'{block.reference()} ${idx:x}: '
               f'{len(ascii)} -> {len(compressed)} bytes '
