@@ -1,0 +1,13 @@
+# Blocks and compression
+
+Traditional Forth blocks consume 1024 bytes of memory to store a 16x64 block of text, which is very inefficient, unless you manually pack your code into unreadable rectangles. I have used Tom Zimmer's 64FORTH (thanks Martin!) and reading or writing even a single block is painfully slow on the C64, not to mention the memory usage.
+
+I have chosen a hybrid between traditional blocks and files, by using text blocks which include newline characters for line breaks. Since decompression is very fast, blocks are stored compressed most of the time. The hard size limit is 255 *compressed* bytes, which in practice means source blocks are up to about 500 characters, although the actual mean is closer to 350 since it also nice to have blocks form reasonably coherent units and leave some space for minor edits.
+
+The compression algorithm used is dictionary-based, and is designed for use with Forth block storage on the C64. ASCII/PETSCII characters are encoded as literals. Newlines are mapped to byte 0 and the printable characters, from `$20` to `$7e`, are mapped to the range 1 to `$5f`. The remaining bytes are special symbols, which encode negative offsets from the symbol being decoded. Note that the offset refers to the *compressed* data, not the plain text.
+
+Symbol `$60` encodes offset -2, `$61` encodes -3, etc. When encountering such a symbol, the decoder recursively decodes the *pair* of bytes starting at the specified offset. The recursion terminates when a literal symbol is found. 
+
+There are multiple ways of compressing the same sequence. Using greedy search, always looking for the longest possible matching pair at each step through the input data, yields fairly good results. These can be somewhat improved by adding a beam search, because initially unpromising encodings could produce useful pairs that can be used efficiently later in the input. With 29kB of Forth code that is compressed to 59.3% of its original size using greedy search, beam search with a beam size of 32 yields 57.9%, which is not a sufficient improvement to justify the increased complexity and runtime.
+
+The 6502 implementation using greedy search takes about 2 seconds to compress a block approaching the maximum limit of 255 compressed bytes. This is fast enough to pay off when using a 600 baud internet connection, like I have. Decompression does not take a significant amount of time.

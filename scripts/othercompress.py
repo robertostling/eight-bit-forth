@@ -119,7 +119,7 @@ def main():
     with open(input_path, 'rb') as f:
         data = f.read().replace(b'\n', b'\r')
     # print(min(data), max(data))
-    compressed = compress_beam(data, 32)
+    compressed = compress_beam(data, 1)
     print(f"{len(data)} -> {len(compressed)} "
           f"({100.0*len(compressed)/len(data):.1f}%)")
     uncompressed = decompress(compressed)
