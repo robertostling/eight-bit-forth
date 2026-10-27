@@ -3,8 +3,7 @@ BUILTIN=src/core.fth src/kernal.fth src/debug.fth src/editor.fth src/ip.fth src/
 blocks.compressed: scripts/split_words.py $(BUILTIN)
 	python3 scripts/split_words.py \
 		-o blocks.compressed \
-		-f merged $(BUILTIN) \
-		--beam-size 16
+		-f merged $(BUILTIN)
 
 # The sources specified here are compressed and included in main binary.
 forth.prg: forth.asm blocks.compressed # $(BUILTIN)
