@@ -1,12 +1,12 @@
-import re
 import argparse
 
+
 def decode_hex(s):
-    return bytes([int(part.strip()[1:], 16) for part in s.split(',')])
+    return [int(part.strip()[1:], 16) for part in s.split(',')]
 
 # https://sta.c64.org/cbm64kbdlay.html
 
-standard_table = decode_hex('''
+default_normal = decode_hex('''
 $14,$0D,$1D,$88,$85,$86,$87,$11,
 $33,$57,$41,$34,$5A,$53,$45,$01,
 $35,$52,$44,$36,$43,$46,$54,$58,
@@ -16,7 +16,7 @@ $2B,$50,$4C,$2D,$2E,$3A,$40,$2C,
 $5C,$2A,$3B,$13,$01,$3D,$5E,$2F,
 $31,$5F,$04,$32,$20,$02,$51,$03''')
 
-shift_table = decode_hex('''
+default_shift = decode_hex('''
 $94,$8D,$9D,$8C,$89,$8A,$8B,$91,
 $23,$D7,$C1,$24,$DA,$D3,$C5,$01,
 $25,$D2,$C4,$26,$C3,$C6,$D4,$D8,
@@ -26,9 +26,58 @@ $DB,$D0,$CC,$DD,$3E,$5B,$BA,$3C,
 $A9,$C0,$5D,$93,$01,$3D,$DE,$3F,
 $21,$5F,$04,$22,$A0,$02,$D1,$83''')
 
+key_order = '''
+Insert/Delete Return Left/Right F7 F1 F3 F5 Up/Down
+3 W A 4 Z S E LeftShift
+5 R D 6 C F T X
+7 Y G 8 B H U V
+9 I J 0 M K O N
++ P L - . : @ ,
+Pound * ; Clear/Home RightShift = ^ /
+1 LeftArrow Control 2 Space Commodore Q Run/Stop'''.split()
+
+key_index = {key: i for i, key in enumerate(key_order)}
+
+tables = {
+    'dvorak': {
+        'Q': ("'", '"'),
+        'W': (',', '<'),
+        'E': ('.', '>'),
+        'R': ('p', 'P'),
+        'T': ('y', 'Y'),
+        'Y': ('f', 'F'),
+        'U': ('g', 'G'),
+        'I': ('c', 'C'),
+        'O': ('r', 'R'),
+        'P': ('l', 'L'),
+        '@': ('/', '?'),
+        '*': ('=', '+'),
+        'A': ('a', 'A'),
+        'S': ('o', 'O'),
+        'D': ('e', 'E'),
+        'F': ('u', 'U'),
+        'G': ('i', 'I'),
+        'H': ('d', 'D'),
+        'J': ('h', 'H'),
+        'K': ('t', 'T'),
+        'L': ('n', 'N'),
+        ':': ('s', 'S'),
+        ';': ('-', '_'),
+        '=': ('=', '|'),
+        'Z': (';', ':'),
+        'X': ('q', 'Q'),
+        'C': ('j', 'J'),
+        'V': ('k', 'K'),
+        'B': ('x', 'X'),
+        'N': ('b', 'B'),
+        'M': ('m', 'M'),
+        ',': ('w', 'W'),
+        '.': ('v', 'V'),
+        '/': ('z', 'Z'),
+        }
+    }
+
 def petscii_to_ascii(x):
-    if isinstance(x, bytes):
-        return bytes([petscii_to_ascii(n) for n in x])
     if 0x41 <= x <= 0x5a:
         return x + 0x20
     elif 0xc0 <= x <= 0xda:
@@ -38,8 +87,6 @@ def petscii_to_ascii(x):
     return x
 
 def ascii_to_petscii(x):
-    if isinstance(x, bytes):
-        return bytes([ascii_to_petscii(n) for n in x])
     if 0x41 <= x <= 0x5a:
         return x + 0x80
     elif 0x61 <= x <= 0x7a:
@@ -48,86 +95,36 @@ def ascii_to_petscii(x):
         return x + 0x60
     return x
 
-def make_dvorak(table):
-    qwerty = ( b'qwertyuiopasdfghjkl:;zxcvbnm,./'
-               b'QWERTYUIOPASDFGHJKL[]ZXCVBNM<>?')
-    dvorak = ( b"',.pyfgcrlaoeuidhtns-;qjkxbmwvz"
-               b'"<>PYFGCRLAOEUIDHTNS_:QJKXBMWVZ')
-    tr = bytes.maketrans(ascii_to_petscii(qwerty), ascii_to_petscii(dvorak))
-    # assert ascii_to_petscii(qwerty).translate(tr) == ascii_to_petscii(dvorak)
-    return table.translate(tr)
+def generate_keymap(table):
+    shift = default_shift.copy()
+    normal = default_normal.copy()
+    for key_name, (v_normal, v_shift) in table.items():
+        c_normal = ascii_to_petscii(ord(v_normal))
+        c_shift = ascii_to_petscii(ord(v_shift))
+        index = key_index[key_name]
+        shift[index] = c_shift
+        normal[index] = c_normal
+    return normal, shift
 
-def petscii_to_char(x):
-    if 0x20 <= x < 0x7f or 0xc0 <= x < 0xe0:
-        return ' ' + chr(petscii_to_ascii(x)) + ' '
-    return f'${x:02x}'
-
-def print_table(f, table, name):
-    print(name, file=f)
-    for row in range(8):
-        print(' '.join(f'[{petscii_to_char(x)}]'
-                       for x in table[8*row:8*(row+1)]),
-              file=f)
-    print(file=f)
-
-def read_table(f):
-    re_entry = re.compile(r'\[(?: (.) |\$([0-9a-z][0-9a-z]))\]')
-    def parse_key(m):
-        if m.group(1).startswith('$'):
-            return int(m.group(1)[1:], 16)
-        return ascii_to_petscii(ord(m.group(1)[1]))
-
-    for row in range(8):
-        line = next(f)
-        values = list(map(parse_key, re_entry.finditer()))
-        print(values)
-
-def read_tables(filename):
-    tables = {}
-    with open(filename) as f:
-        for line in f:
-            if not (name := line.strip()):
-                tables[name] = read_table(f)
-    return tables
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert Commodore keymaps between text and binary formats')
+        description='Create Commodore keymaps')
 
-    parser.add_argument('-i', '--input',
-                        help='Input file, format determined by suffix (.bin/.txt)')
     parser.add_argument('-o', '--output',
                         help='Output file, format determined by suffix (.bin/.txt)')
-    parser.add_argument('-p', '--pad', action='store_true',
-                        help='Pad binary output with $ff bytes to page')
-    parser.add_argument('-d', '--dvorak', action='store_true',
-                        help='Automatically attempt translation to dvorak')
+    parser.add_argument('-k', '--keymap', choices=list(tables.keys()),
+                        help='Keymap to generate')
+    parser.add_argument('-p', '--pad', action='store_true')
     args = parser.parse_args()
 
-    tables = dict(standard=standard_table, shift=shift_table)
-    if args.dvorak:
-        tables = {k: make_dvorak(table) for k, table in tables.items()}
+    keymap = generate_keymap(tables[args.keymap])
 
-    if (not args.input) and args.output and args.output.endswith('.txt'):
-        with open(args.output, 'w') as f:
-            for name in ['standard', 'shift']:
-                print_table(f, tables[name], name)
-    elif args.output and args.output.endswith('.bin'):
-        if args.input and args.input.endswith('.txt'):
-            tables = read_tables(args.input)
-        elif args.input:
-            print(f'Unknown input suffix: {args.input}')
-            sys.exit(1)
-        data = b''
-        data += tables['standard'] + bytes([0xff])
-        if 'shift' in tables:
-            data += tables['shift'] + bytes([0xff])
-        if args.pad:
-            data += bytes([0xff]*(0x100 - len(data)))
-        with open(args.output, 'wb') as f:
-            f.write(data)
-    else:
-        print('Invalid configuration of input/output files')
+    data = b''.join(bytes(section + [0xff]) for section in keymap)
+    if args.pad:
+        data += bytes([0xff]*(0x100 - len(data)))
+    with open(args.output, 'wb') as f:
+        f.write(data)
 
 if __name__ == '__main__':
     main()
