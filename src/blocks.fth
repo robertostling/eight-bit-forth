@@ -85,7 +85,6 @@ sources.
   1 d7 -w  12 /mod8  swap 19 + swap ;
 : disk-ts-4
   2 43 -w  11 /mod8  swap 1f + swap ;
-# assumes  0 <= blk6 < $298
 : disk-ts ( -- track sector )
   6 blkn @w swap
   dupw 1 65 <w if  disk-ts-1 exit  then
@@ -95,13 +94,19 @@ sources.
   dupw 2 98 <w if  disk-ts-4 exit  then
   disk-ts-4 ;
 # code
-: disk-read ( w:a -- err? )
+: disk-rw ( -- err? )
   6 blkn @w swap  2 98 >=w
   ?dup skip
   5 blkn @ dup 8 = swap 9 = or not
   ?dup skip
   5 blkn @  disk-device !
+  false ;
+: disk-read ( w:a -- err? )
+  disk-rw ?dup skip
   disk-ts disk-raw-read ;
+: disk-write ( w:a -- err? )
+  disk-rw ?dup skip
+  disk-ts disk-raw-write ;
 # doc
 ( Floppy disk
 
@@ -192,9 +197,14 @@ create bs-struct
   ' bs-read ,2
   ' bs-write ,2
 
-1 var max-block-devices
+create disk-struct
+  ' disk-read ,2
+  ' disk-write ,2
+
+2 var max-block-devices
 create block-devices
   rd-struct ,2
+  disk-struct ,2
 
 0 0 varw fn-read
 0 2 varw fn-write
@@ -261,7 +271,7 @@ flushed and all entries moved back.
   @ 0  block-write  if
     dropw true exit
   then
-  cache-state-used !  false ;
+  cache-state-used -rot !  false ;
 : cache-free ( w:header -- err? )
   dupw cache-write
   if  dropw true exit  then
@@ -303,17 +313,19 @@ flushed and all entries moved back.
   next ;
 # code
 ( High-level block words )
-: block ( -- [w:a] err? )
+: buffer ( -- [w:a] err? )
   cache-lookup if
     cache-new-entry ?dup skip
     cache-allocate
-    dupw block-read ?dup if
-      dropw true exit
-    then
   else
     1+w @ 0
   then
   false ;
+: block ( -- [w:a] err? )
+  buffer ?dup skip
+  dupw block-read if
+    dropw true exit
+  then false ;
 : update ( -- )
   cache-lookup skip
   cache-state-dirty -rot ! ;
@@ -408,4 +420,24 @@ flushed and all entries moved back.
 : go# ( -- ) save  scr block#  go ;
 : go> ( -- ) save  1 +scr  go ;
 : <go ( -- ) save  1 -scr  go ;
-: go* ( n -- ) save  7 scrn !  go ;
+: go* ( n -- ) save  7 scrn !  go ;  
+# code
+( Block copying )
+: copy-block ( w:src w:trg -- err? )
+  swapw blk !block  block
+  if  dropw true exit  then
+  swapw blk !block  buffer
+  if  dropw true exit  then
+  1 0  <move
+  update  false ;
+: ++block
+  0 6 +w dupw
+  @w swap 1+w swap
+  swapw !w ;
+: copy-blocks ( w:str w:trg n -- err? )
+  for
+    overw overw copy-block if
+      r> drop dropw dropw true exit
+    then
+    ++block swapw ++block swapw
+  next  false ;

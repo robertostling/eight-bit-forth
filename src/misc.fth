@@ -60,3 +60,18 @@ create checksum checksum-size allot
   1 t+>a pha  t>a pha ] ;
 : if litw [ ' ?0branch >code ,2 ]
   jsr  0 ,  ref> ; immediate
+
+
+# before creating buffer:
+
+: block ( -- [w:a] err? )
+  cache-lookup if
+    cache-new-entry ?dup skip
+    cache-allocate
+    dupw block-read ?dup if
+      dropw true exit
+    then
+  else
+    1+w @ 0
+  then
+  false ;
