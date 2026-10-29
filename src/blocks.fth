@@ -5,10 +5,8 @@
 
 block-variable scr
 block-variable blk
-blk 0 4 +w varw blk4
-blk 0 7 +w varw blk7
-scr 0 6 +w varw scr6
-scr 0 7 +w varw scr7
+: blkn 0 swap blk +w ;
+: scrn 0 swap scr +w ;
 
 false var scr-valid
 create bs-key 10 allot
@@ -51,7 +49,7 @@ based on the block number.
 # code
 ( RAM drive )
 : rd-block-page ( -- w:a )
-  blk7 @  rd-page swap ;
+  7 blkn @  rd-page swap ;
 : rd-read ( w:a -- err? )
   rd-block-page @
   ?dup 0= if
@@ -79,9 +77,47 @@ allows viewing and editing the system
 sources.
 )
 # code
+: disk-ts-1
+  15 /mod8  swap 1+ swap ;
+: disk-ts-2
+  1 65 -w  13 /mod8  swap 13 + swap ;
+: disk-ts-3
+  1 d7 -w  12 /mod8  swap 19 + swap ;
+: disk-ts-4
+  2 43 -w  11 /mod8  swap 1f + swap ;
+# assumes  0 <= blk6 < $298
+: disk-ts ( -- track sector )
+  6 blkn @w swap
+  dupw 1 65 <w if  disk-ts-1 exit  then
+  0 13 -w
+  dupw 1 d7 <w if  disk-ts-2 exit  then
+  dupw 2 43 <w if  disk-ts-3 exit  then
+  dupw 2 98 <w if  disk-ts-4 exit  then
+  disk-ts-4 ;
+# code
+: disk-read ( w:a -- err? )
+  6 blkn @w swap  2 98 >=w
+  ?dup skip
+  5 blkn @ dup 8 = swap 9 = or not
+  ?dup skip
+  5 blkn @  disk-device !
+  disk-ts disk-raw-read ;
+# doc
+( Floppy disk
+
+We currently map block numbers to disk
+sectors starting at track 1, sector 0,
+continuing to track 35, sector 17.
+Track 18 is reserved and not touched.
+This gives a total of 664 blocks,
+indexed by the last 2 bytes of the
+block number. Byte 3 contains the disk
+drive (8 or 9).
+)
+# code
 ( Network block load request )
 : bs-load-req ( -- )
-  blk4  0 4  0 1  udp-copy-payload
+  4 blkn  0 4  0 1  udp-copy-payload
   packet-write-buf 0 1d +w swapd
   a0 packet-write-buf 0 1c +w !
   my-ip  blk  ab cd  bs-port  0 5
@@ -115,7 +151,7 @@ sources.
 ( Network block store request )
 : bs-store-req ( w:a -- )
   1 0  0 15  udp-copy-payload
-  blk4  0 4  0 11 udp-copy-payload
+  4 blkn  0 4  0 11 udp-copy-payload
   packet-write-buf 0 2d +w swapd
   bs-key  0 10  0 1  udp-copy-payload
   a2  packet-write-buf 0 1c +w  !
@@ -337,11 +373,11 @@ flushed and all entries moved back.
   uncompress-text
   true to scr-valid ;
 : +scr ( n -- )
-  0 swap  scr6 @w
-  swap +w swap  scr6 !w ;
+  0 swap  6 scrn @w
+  swap +w swap  6 scrn !w ;
 : -scr ( n -- )
-  0 swap  scr6 @w
-  swap swapw -w swap  scr6 !w ;
+  0 swap  6 scrn @w
+  swap swapw -w swap  6 scrn !w ;
 # code
 ( Text block management/execution )
 : discard ( -- )
@@ -372,4 +408,4 @@ flushed and all entries moved back.
 : go# ( -- ) save  scr block#  go ;
 : go> ( -- ) save  1 +scr  go ;
 : <go ( -- ) save  1 -scr  go ;
-: go* ( n -- ) save  scr7 !  go ;
+: go* ( n -- ) save  7 scrn !  go ;

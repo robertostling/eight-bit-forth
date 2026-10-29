@@ -571,3 +571,5 @@
   dropw ;
 : mem= ( w:a w:b n -- t/f )
   mem-compare 0= ;
+: /mod8 ( w:n d -- q r )
+  0 swap /mod  nip  rot drop ;

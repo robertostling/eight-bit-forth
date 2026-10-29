@@ -13,7 +13,7 @@
 ( Startup code )
 
 vps-block0 blk !block
-10 blk7 !
+10 7 blkn !
 : alloc-load-block ( -- [w:a] err? )
   block ?dup skip
   alloc-page 0  dup>rw  1 0  <move

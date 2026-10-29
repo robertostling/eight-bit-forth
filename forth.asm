@@ -1427,6 +1427,227 @@ code_free_page:
     rts
     }
 
+    +create_word_header "/mod", 0
+    ; /mod ( n:w d:w -- q:w r:w )
+    !zone {
+    .q = zp_temp+0
+    .r = zp_temp+2
+    .rmd = zp_temp+4
+    lda #0
+    sta .q
+    sta .q+1
+    sta .r
+    sta .r+1
+
+    ldy #$10
+.loop:
+    asl stack+2, x
+    rol stack+3, x
+    rol .r
+    rol .r+1
+
+    sec
+    lda .r+0
+    sbc stack+0, x
+    sta .rmd+0
+    lda .r+1
+    sbc stack+1, x
+    bcc .r_smaller
+    sta .r+1
+    lda .rmd+0
+    sta .r+0
+.r_smaller:
+    rol .q+0
+    rol .q+1
+
+    dey
+    bne .loop
+
+    lda .q+0
+    sta stack+2, x
+    lda .q+1
+    sta stack+3, x
+    lda .r+0
+    sta stack+0, x
+    lda .r+1
+    sta stack+1, x
+    rts
+    }
+    ; ab cd 0 10 /mod .s
+    +create_word_header "disk-device", 0
+    jsr code_dovar
+disk_device:
+    !byte 8
+
+
+byte_to_dec:
+    ;; A = value 0-99
+    ;; returns:
+    ;; Y = ASCII of most significant decimal digit
+    ;; A = ASCII of least significant decimal digit
+    ldy #'0'-1
+-   iny
+    sec
+    sbc #10
+    bcs -
+    adc #'0'+10
+    rts
+
+    ; logical file number used for command channel
+    cmd_lf = 3
+
+    ; disk-raw-write ( w:a track sector -- err? )
+    +create_word_header "disk-raw-write", 0
+    ; do not allow writes to track 18
+    lda stack+1, x
+    cmp #18
+    bne .not_reserved
+    inx
+    inx
+    inx
+    sta stack, x
+    rts
+.not_reserved:
+    lda #'2'
+    bne rwblk
+
+    ; disk-raw-read ( w:a track sector -- err? )
+    +create_word_header "disk-raw-read", 0
+    !zone {
+    lda #'1'
+rwblk:
+    sta .cmd
+
+    ;; address of 256 byte buffer (for reading or writing)
+    lda stack+2, x
+    sta zp_temp
+    lda stack+3, x
+    sta zp_temp+1
+
+    lda stack, x
+    jsr byte_to_dec
+    sty .sector
+    sta .sector+1
+    lda stack+1, x
+    jsr byte_to_dec
+    sty .track
+    sta .track+1
+
+    txa
+    pha
+    lda #1
+    ldx #<.cname
+    ldy #>.cname
+    jsr $ffbd               ; SETNAM "#"
+
+    lda #cmd_lf
+    ldx disk_device
+    ldy #2
+    jsr $ffba               ; SETLFS x,8,2
+
+    jsr $ffc0               ; OPEN
+    bcs .error
+
+    lda .cmd
+    cmp #'1'
+    bne .write
+
+.read:
+    lda #.cmdname_end-.cmdname
+    ldx #<.cmdname
+    ldy #>.cmdname
+    jsr $ffbd               ; SETNAM "U1 2 0 nn nn"
+    lda #15
+    ldx disk_device
+    ldy #15
+    jsr $ffba               ; SETLFS 15,8,15
+
+    jsr $ffc0               ; OPEN
+    bcs .error
+
+    ldx #cmd_lf
+    jsr $ffc6               ; CHKIN x
+
+    ldy #0
+.read_loop:
+    jsr $ffcf               ; CHRIN
+    sta (zp_temp), y
+    iny
+    bne .read_loop
+    beq .success
+
+.write:
+    lda #.bpcmd_end-.bpcmd
+    ldx #<.bpcmd
+    ldy #>.bpcmd
+    jsr $ffbd               ; SETNAM "B-P 2 0"
+
+    lda #15
+    ldx disk_device
+    tay
+    jsr $ffba               ; SETLFS 15,8,15
+
+    jsr $ffc0               ; OPEN
+    bcs .error
+
+    ldx #cmd_lf
+    jsr $ffc9               ; CHKOUT x
+
+    ldy #0
+.write_loop:
+    lda (zp_temp), y
+    jsr $ffd2               ; CHROUT
+    iny
+    bne .write_loop
+
+    ldx #15
+    jsr $ffc9               ; CHKOUT 15
+
+    ldy #0
+.cmd_loop:
+    lda .cmdname, y
+    jsr $ffd2
+    iny
+    cpy #(.cmdname_end+1)-.cmdname
+    bne .cmd_loop           ; include the CR at the end
+
+.success:
+    lda #0
+.error:
+    sta zp_temp+0
+.close:
+    jsr $ffcc               ; CLRCHN
+    lda #15
+    jsr $ffc3               ; CLOSE 15
+    lda #cmd_lf
+    jsr $ffc3               ; CLOSE x
+    jsr $ffcc               ; CLRCHN
+    pla
+    tax
+
+    lda zp_temp+0
+    inx
+    inx
+    inx
+    sta stack, x
+    rts
+
+.cname:
+    !text "#"
+.cmdname:
+    !text "U"
+.cmd:
+    !text "1 2 0 "
+.track:
+    !text "00 "
+.sector:
+    !text "00"
+.cmdname_end:
+    !byte $0d
+.bpcmd:
+    !text "B-P 2 0"
+.bpcmd_end:
+    }
 
     ; C>HEX ( C -- N )
     ; N is $ff on error, otherwise a value 0--15
