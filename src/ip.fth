@@ -248,3 +248,4 @@ ab ba varw ping-id
   ( w:data w:size w:offset -- )
   packet-write-buf +w 0 1c +w  swapw
   <move ;
+cr .( ip:       ) status

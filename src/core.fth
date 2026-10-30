@@ -450,7 +450,7 @@
   char postpone literal ; immediate
 : .(
   char dup [char] ) = if
-    drop cr exit
+    drop exit
   then emit tail; .( immediate
 # code
 ( Comments and strings )

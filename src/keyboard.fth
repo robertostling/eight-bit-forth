@@ -15,3 +15,4 @@ variablew keymap
   ea e0 jmp
 : init-keymap
   ['] choose-keymap >code 2 8f !w ;
+cr .( keyboard: ) status

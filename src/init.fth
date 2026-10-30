@@ -24,7 +24,8 @@ vps-block0 blk !block
   keymap !w
   init-keymap ;
 
-cr status
+cr .( done:     ) status
+free-status
 
 serial-init
 cr .( initialized rs-232) cr

@@ -444,3 +444,4 @@ flushed and all entries moved back.
     then
     ++block swapw ++block swapw
   next  false ;
+cr .( blocks:   ) status

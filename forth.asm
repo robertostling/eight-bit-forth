@@ -190,17 +190,17 @@ code_paren:
 +   rts
 
 
-    +create_word_header ".(", flag_immediate
-code_dotparen:
--   jsr read_byte
-    bcs +
-    cmp #')'
-    beq +
-    jsr $ffd2
-    jmp -
-+   lda #$0d
-    jsr $ffd2
-    rts
+    ; This is implemented in core.fth, but this code can be reinserted
+    ; if early debugging is needed
+;;     +create_word_header ".(", flag_immediate
+;; code_dotparen:
+;; -   jsr read_byte
+;;     bcs +
+;;     cmp #')'
+;;     beq +
+;;     jsr $ffd2
+;;     jmp -
+;; +   rts
 
 
     +create_word_header "char", 0

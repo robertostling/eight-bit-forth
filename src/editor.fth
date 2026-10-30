@@ -133,18 +133,4 @@ create cr-str 0d ,
   forw @+ append-char nextw
   dropw ;
 : p  text-buffer text-size typew ;
-# code
-( Line editor/UI utilities )
-: .jiffy
-  0 a0 @ .h  0 a1 @ .h  0 a2 @ .h ;
-: free-pages ( -- n )
-  0  free-list @  begin
-    ?dup so
-    swap 1+ swap
-    0 @
-  again ;
-: status
-  here@w ['] ,2 -w
-  .jiffy ." : heap at " here@w .w ." ; "
-  .w ." bytes" cr
-  free-pages 0 .w ." bytes free" cr ;
+cr .( editor:   ) status

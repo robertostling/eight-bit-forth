@@ -44,3 +44,21 @@
 ' :
 : : [ >code jsr ] postpone self
   ; immediate )
+# code
+( Line editor/UI utilities )
+: .jiffy
+  0 a0 @ .h  0 a1 @ .h  0 a2 @ .h ;
+: free-pages ( -- n )
+  0  free-list @  begin
+    ?dup so
+    swap 1+ swap
+    0 @
+  again ;
+: status
+  here@w ['] ,2 -w
+  .jiffy ."  @" here@w .w ." ("
+  .w ." bytes)
+" ;
+: free-status
+  free-pages 0 .w ." bytes free" cr ;
+cr .( debug:    ) status
