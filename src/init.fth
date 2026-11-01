@@ -27,9 +27,9 @@ vps-block0 blk !block
 cr .( done:     ) status
 free-status
 
-serial-init
-cr .( initialized rs-232) cr
-sunet-ip ping
-sunet-ip ping
+# serial-init
+# cr .( initialized rs-232) cr
+# sunet-ip ping
+# sunet-ip ping
 
 repl

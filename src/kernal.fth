@@ -92,3 +92,4 @@ variablew kernal-routine
 : kernal-key
   kernal-getin ?dup skip kernal-key ;
 : key maker kernal-key ;
+cr .( kernal:   ) status

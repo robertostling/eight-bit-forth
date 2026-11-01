@@ -1695,6 +1695,190 @@ code_interpret:
     rts
 
 
+    tape_pulse_threshold = $21
+    tape_pulse_short = $1b
+    tape_pulse_long = $29
+    tape_sync_bits = $40
+
+    ; tape-write ( w:a w:checksum size -- )
+    ;; +create_word_header "tape-write", 0
+    ;; !zone {
+
+
+    ;; }
+
+    ; csw ( w:data w:n -- w:checksum )
+    +create_word_header "csw", 0
+    !zone {
+    lda stack+2, x
+    sta zp_temp+0
+    lda stack+3, x
+    sta zp_temp+1
+
+    lda #$ab
+    sta stack+2, x
+    lda #$cd
+    sta stack+3, x
+.loop:
+    lda stack+0, x
+    ora stack+1, x
+    beq .done
+
+    ldy #0
+    lda (zp_temp+0), y
+    eor stack+2, x
+    tay
+    lda sbox, y
+    sta stack+2, x
+    eor stack+3, x
+    tay
+    lda sbox, y
+    sta stack+3, x
+
+    +incw zp_temp+0
+    
+    sec
+    lda stack+0, x
+    sbc #1
+    sta stack+0, x
+    bcs .loop
+    dec stack+1, x
+    jmp .loop
+
+.done:
+    inx
+    inx
+    rts
+    }
+
+    ; TODO: specify buffer size, 16-bit block sizes
+    ; tape-read ( w:a -- w:checksum w:block# size err? )
+    +create_word_header "tape-read", 0
+    !zone {
+code_tape_read:
+    ; https://www.pagetable.com/162
+    ; set up timers
+    lda #7
+    sta $dd04
+    lda #0
+    sta $dd05
+    lda #$11
+    sta $dd0e
+    lda #$ff
+    sta $dd06
+    sta $dd07
+
+    ; wait for play press
+    lda #$10
+-   bit $1
+    bne -
+
+    ; disable screen and wait for new screen
+    sei
+    lda $d011
+    and #$ef
+    sta $d011
+-   lda $d012
+    bne -
+
+    ; turn motor on
+    lda $1
+    and #$df
+    sta $1
+
+    lda stack+0, x
+    sta zp_temp+0
+    lda stack+1, x
+    sta zp_temp+1
+    dex
+    dex
+    dex
+    dex
+
+    jsr .sync
+    ; read block size
+    jsr .get_byte
+    sta stack+1, x
+    ; read block number and checksum
+    jsr .get_byte
+    sta stack+2, x
+    jsr .get_byte
+    sta stack+3, x
+    jsr .get_byte
+    sta stack+4, x
+    jsr .get_byte
+    sta stack+5, x
+    ; read block data
+    lda stack+1, x
+    jsr .get_block
+
+    lda #$ff
+    sta stack+0, x
+
+    ; turn screen on
+    lda $d011
+    ora #$10
+    sta $d011
+    ; turn motor off
+    lda $1
+    ora #$20
+    sta $1
+
+    rts
+
+    ; C = 0 (long) or 1 (short) pulse
+.get_pulse:
+    lda #$10
+-   bit $dc0d
+    bne -
+    ldy #$59
+-   bit $dc0d
+    beq -
+    lda $dd06 ; $11d9
+    sty $dd0f
+    cmp #$ff-tape_pulse_threshold
+    rts
+
+.get_byte:
+    lda #$80
+-   pha
+    jsr .get_pulse
+    pla
+    ror
+    bcc -
+    eor #$ff
+    rts
+
+.get_block:
+    ; A = number of bytes to read
+    ; zp_temp = address
+    sta zp_temp+2
+    lda #0
+    sta zp_temp+3
+-   jsr .get_byte
+    ldy zp_temp+3
+    sta (zp_temp+0), y
+    inc zp_temp+3
+    dec zp_temp+2
+    bne -
+    rts
+
+.sync:
+    lda #tape_sync_bits
+    sta zp_temp+0
+-   jsr .get_pulse
+    bcc .sync
+    dec zp_temp+0
+    bne -
+.wait_1:
+    jsr .get_pulse
+    bcs .wait_1
+    jsr .get_byte
+    cmp #$c3
+    bne .sync
+    rts
+    }
+
 entry:
     !zone {
 
