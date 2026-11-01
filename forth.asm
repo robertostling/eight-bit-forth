@@ -1709,6 +1709,7 @@ code_interpret:
 
     ; csw ( w:data w:n -- w:checksum )
     +create_word_header "csw", 0
+code_csw:
     !zone {
     lda stack+2, x
     sta zp_temp+0
@@ -1727,6 +1728,7 @@ code_interpret:
     ldy #0
     lda (zp_temp+0), y
     eor stack+2, x
+    eor stack+3, x
     tay
     lda sbox, y
     sta stack+2, x
@@ -1751,11 +1753,16 @@ code_interpret:
     rts
     }
 
-    ; TODO: specify buffer size, 16-bit block sizes
-    ; tape-read ( w:a -- w:checksum w:block# size err? )
+    ; tape-read ( w:a w:maxsize -- [w:block# w:size] errcode )
     +create_word_header "tape-read", 0
     !zone {
 code_tape_read:
+    .bufptr = zp_temp+0
+    .maxsize = zp_temp+2
+    .checksum_stored = zp_temp+4
+    .checksum = zp_temp+6
+    .endptr = zp_temp+2 ; after .maxsize
+    ; This part is based on information in:
     ; https://www.pagetable.com/162
     ; set up timers
     lda #7
@@ -1781,38 +1788,110 @@ code_tape_read:
 -   lda $d012
     bne -
 
+    ; initialize checksum calculation
+    lda #$ab
+    sta .checksum+0
+    lda #$cd
+    sta .checksum+1
+
     ; turn motor on
     lda $1
     and #$df
     sta $1
 
+    ; store buffer pointer
+    lda stack+2, x
+    sta .bufptr+0
+    lda stack+3, x
+    sta .bufptr+1
+
+    ; store buffer size
     lda stack+0, x
-    sta zp_temp+0
+    sta .maxsize+0
     lda stack+1, x
-    sta zp_temp+1
-    dex
-    dex
-    dex
-    dex
+    sta .maxsize+1
 
     jsr .sync
+
     ; read block size
     jsr .get_byte
+    sta stack+0, x
+    jsr .get_byte
     sta stack+1, x
+
+    ; if the data can not fit in buffer, terminate immediately with error
+    lda .maxsize+0
+    cmp stack+0, x
+    lda .maxsize+1
+    sbc stack+1, x
+    bcs .size_ok
+
+    inx
+    inx
+    inx
+    lda #1
+    bne .terminate
+.size_ok:
     ; read block number and checksum
     jsr .get_byte
     sta stack+2, x
     jsr .get_byte
     sta stack+3, x
-    jsr .get_byte
-    sta stack+4, x
-    jsr .get_byte
-    sta stack+5, x
-    ; read block data
-    lda stack+1, x
-    jsr .get_block
 
-    lda #$ff
+    jsr .get_byte
+    sta .checksum_stored+0
+    jsr .get_byte
+    sta .checksum_stored+1
+
+    ; compute address of last byte + 1
+    clc
+    lda stack+0, x
+    adc .bufptr+0
+    sta .endptr+0
+    lda stack+1, x
+    adc .bufptr+1
+    sta .endptr+1
+
+    ; read block data
+.read_body:
+    lda .bufptr+0
+    cmp .endptr+0
+    bne .not_done
+    lda .bufptr+1
+    cmp .endptr+1
+    beq .done
+.not_done:
+    jsr .get_byte
+    ldy #0
+    sta (.bufptr), y
+    eor .checksum+0
+    eor .checksum+1
+    tay
+    lda sbox, y
+    sta .checksum+0
+    eor .checksum+1
+    tay
+    lda sbox, y
+    sta .checksum+1
+    +incw .bufptr
+    jmp .read_body
+.done:
+    lda .checksum+0
+    cmp .checksum_stored+0
+    bne .checksum_fail
+    lda .checksum+1
+    cmp .checksum_stored+1
+    beq .success
+.checksum_fail:
+    inx
+    inx
+    inx
+    lda #$2
+    bne .terminate
+.success:
+    dex
+    lda #0
+.terminate:
     sta stack+0, x
 
     ; turn screen on
@@ -1825,6 +1904,7 @@ code_tape_read:
     sta $1
 
     rts
+
 
     ; C = 0 (long) or 1 (short) pulse
 .get_pulse:
@@ -1852,15 +1932,6 @@ code_tape_read:
 .get_block:
     ; A = number of bytes to read
     ; zp_temp = address
-    sta zp_temp+2
-    lda #0
-    sta zp_temp+3
--   jsr .get_byte
-    ldy zp_temp+3
-    sta (zp_temp+0), y
-    inc zp_temp+3
-    dec zp_temp+2
-    bne -
     rts
 
 .sync:

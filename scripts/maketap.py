@@ -21,49 +21,7 @@ class TAPWriter:
         self.f.write(bytes(pulses))
 
 
-class BlockWriter(TAPWriter):
-    def bit_value(self, b):
-        return 0x29 if b else 0x1b
-
-    def byte_values(self, x):
-        return [self.bit_value((x & (1 << i)) != 0) for i in range(8)]
-
-    def word_values(self, x, byteorder='little'):
-        bs = x.to_bytes(length=2, byteorder=byteorder, signed=False)
-        return self.byte_values(bs[0]) + self.byte_values(bs[1])
-
-    def sync_values(self):
-        return ([self.bit_value(0)]*0x48
-                + [self.bit_value(1)]
-                + self.byte_values(0xc3))
-
-    def write_sync_tone(self, seconds):
-        value = self.bit_value(0)
-        n_values = 985248*seconds / (8*value[0])
-        self.write_pulses(value*n_values)
-
-    def write_block(self, block, block_number):
-        length = len(block)
-        if not (1 <= length <= 256):
-            raise ValueError(f'Invalid block size: {length}')
-        if length == 256:
-            length = 0
-        checksum = checksum16(block)
-        pulses = (self.sync_values()
-                  + self.byte_values(length)
-                  + self.word_values(block_number)
-                  + self.word_values(checksum))
-        for x in block:
-            pulses.extend(self.byte_values(x))
-        self.write_pulses(pulses)
-
-    def write_blocks(self, blocks, start_number):
-        self.write_sync_tone(1.0)
-        for i, block in enumerate(blocks):
-            self.write_block(block, start_number+i)
-
-aes_sbox = (
-            0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
+aes_sbox = (0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
             0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
             0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0,
             0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -101,10 +59,50 @@ def checksum16(data):
     state = [0xab, 0xcd]
     for x in data:
         assert 0 <= x < 0x100
-        state[0] = aes_sbox[state[0] ^ x]
+        state[0] = aes_sbox[state[1] ^ state[0] ^ x]
         state[1] = aes_sbox[state[1] ^ state[0]]
         print(f'x = {x:02x} state: {state[0]:02x} {state[1]:02x}')
     return state[0] + 0x100*state[1]
+
+
+class BlockWriter(TAPWriter):
+    def bit_value(self, b):
+        return 0x29 if b else 0x1b
+
+    def byte_values(self, x):
+        return [self.bit_value((x & (1 << i)) != 0) for i in range(8)]
+
+    def word_values(self, x, byteorder='little'):
+        bs = x.to_bytes(length=2, byteorder=byteorder, signed=False)
+        return self.byte_values(bs[0]) + self.byte_values(bs[1])
+
+    def sync_values(self):
+        return ([self.bit_value(0)]*0x48
+                + [self.bit_value(1)]
+                + self.byte_values(0xc3))
+
+    def write_sync_tone(self, seconds):
+        value = self.bit_value(0)
+        n_values = 985248*seconds / (8*value[0])
+        self.write_pulses(value*n_values)
+
+    def write_block(self, block, block_number):
+        length = len(block)
+        checksum = checksum16(block)
+        pulses = (self.sync_values()
+                  + self.word_values(length)
+                  + self.word_values(block_number)
+                  + self.word_values(checksum))
+        for x in block:
+            pulses.extend(self.byte_values(x))
+        self.write_pulses(pulses)
+
+    def write_blocks(self, blocks, start_number, start_tone=2.0, mid_tone=0.1):
+        self.write_sync_tone(start_tone)
+        for i, block in enumerate(blocks):
+            self.write_block(block, start_number+i)
+            self.write_sync_tone(mid_tone)
+
 
 import sys
 
