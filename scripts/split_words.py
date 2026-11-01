@@ -3,6 +3,7 @@ import argparse
 import os.path
 
 import othercompress
+import maketap
 
 PAD_BYTE = 0xff
 
@@ -44,7 +45,7 @@ def main():
     parser.add_argument('-o', '--output',
                         help='File to write block data to')
     parser.add_argument('-f', '--format',
-                        choices=['merged'], default='merged',
+                        choices=['merged', 'tap'], default='merged',
                         help='Format of the output data file')
     parser.add_argument('--beam-size', default=1, type=int,
                         help='Beam size in compression')
@@ -108,9 +109,12 @@ def main():
                 data = (idx_bytes + size_bytes + compressed)
                 outf.write(data)
             outf.write((0xffff).to_bytes(2, 'little'))
+    elif args.format == 'tap':
+        with maketap.BlockWriter(args.output) as bw:
+            bw.write_blocks([block.compress() for block in output_blocks], 0)
     else:
         raise NotImplementedError()
 
+
 if __name__ == '__main__':
     main()
-

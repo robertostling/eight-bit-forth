@@ -1,4 +1,5 @@
-( c64 vic and sid )
+# code
+( VIC color definitions )
 : foreground 02 86 ;
 : background d0 21 ;
 : border d0 20 ;
@@ -9,7 +10,8 @@
 : dark-grey b ;   : grey c ;
 : light-green d ; : light-blue e ;
 : light-grey f ;
-( sid )
+# code
+( SID constants )
 : voice1 0 ;
 : voice2 7 ;
 : voice3 0e ;
@@ -25,6 +27,8 @@
 : control d4 swap 4 + ! ;
 : duty d4 swap 2 + !w ;
 : filter-frequency d4 15 !w ;
+# code
+( SID high-level control )
 : decay-attack ( dec att voice -- )
   -rot 4 << or swap d4 swap 5 + ! ;
 : release-sustain ( rel sus voice -- )
@@ -38,4 +42,3 @@ variable sid-filter
 : filters ( bitmask -- )
   sid-filter ! filter-volume ;
 : volume sid-volume ! filter-volume ;
-

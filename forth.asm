@@ -1753,15 +1753,106 @@ code_csw:
     rts
     }
 
-    ; tape-read ( w:a w:maxsize -- [w:block# w:size] errcode )
-    +create_word_header "tape-read", 0
+
+    ; rd-tape-read ( -- errcode )
+    ; read a block group from tape into the current RAM drive
+    ; error codes:
+    ; 0 = no error
+    ; 1 = block too large for buffer
+    ; 2 = checksum incorrect
+    ; 3 = block number > $ff
+    ; 4 = out of memory
+    +create_word_header "rd-tape-read", 0
+code_rd_tape_read:
     !zone {
-code_tape_read:
-    .bufptr = zp_temp+0
-    .maxsize = zp_temp+2
-    .checksum_stored = zp_temp+4
-    .checksum = zp_temp+6
-    .endptr = zp_temp+2 ; after .maxsize
+    jsr tape_read_init
+.read_next:
+    jsr code_alloc_page
+    lda stack+0, x
+    beq .oom
+    dex
+    dex
+    dex
+    dex
+    sta stack+3, x
+    lda #0
+    sta stack+2, x
+    sta stack+0, x
+    lda #1
+    sta stack+1, x
+    ; ( page w:page$00 w:$100 )
+    jsr tape_read
+    ; ( page flags w:block# w:size errcode ) or just ( page errcode )
+    lda stack+0, x
+    beq .success
+    ; error from tape-read, nip and terminate
+    inx
+.done:
+    sta stack+0, x
+    jmp tape_read_finish
+.oom:
+    lda #4
+    bne .done
+.success:
+    lda stack+4, x
+    beq .block_number_ok
+    ; invalid block number, above $ff
+    inx
+    inx
+    inx
+    inx
+    lda #3
+    bne .done
+.block_number_ok:
+    lda stack+3, x
+    tay
+    lda ram_drive, y
+    beq .do_not_free
+    ; if page is used, free old one first
+    dex
+    sta stack+0, x
+    jsr code_free_page
+    ; drop error flag from free-page
+    inx
+.do_not_free:
+    ; insert new page into ram drive
+    lda stack+3, x
+    tay
+    lda stack+6, x
+    sta ram_drive, y
+
+    ; fill rest of page with $ff bytes
+    sta .fill_rest+2
+    lda stack+1, x
+    ; assume no 0 byte blocks, so this indicates block size = $100
+    ; then we do not need to pad
+    beq .fill_done
+    tay
+    lda #$ff
+.fill_rest:
+    sta $ff00, y
+    iny
+    bne .fill_rest
+.fill_done:
+
+    txa
+    clc
+    adc #7
+    tax
+
+    ; check for "end of block group" flag,
+    ; if it is not set, just read the next block
+    lda stack-2, x
+    and #$01
+    beq .read_next
+
+    dex
+    ; lda #0
+    sta stack+0, x
+    jmp tape_read_finish
+    }
+
+tape_read_init: 
     ; This part is based on information in:
     ; https://www.pagetable.com/162
     ; set up timers
@@ -1788,16 +1879,48 @@ code_tape_read:
 -   lda $d012
     bne -
 
+    ; turn motor on
+    lda $1
+    and #$df
+    sta $1
+
+    rts
+
+    ; tape-read ( w:a w:maxsize -- [flags w:block# w:size] errcode )
+    ; errcode:
+    ; 0 = no error
+    ; 1 = block too large for buffer
+    ; 2 = checksum incorrect
+    ; if errcode is zero, block# and size are present on stack, otherwise
+    ; only the errcode
+    +create_word_header "tape-read", 0
+    jsr tape_read_init
+    jsr tape_read
+tape_read_finish:
+    ; turn screen on
+    lda $d011
+    ora #$10
+    sta $d011
+    ; turn motor off
+    lda $1
+    ora #$20
+    sta $1
+    rts
+
+
+    !zone {
+tape_read:
+    .bufptr = zp_temp+0
+    .maxsize = zp_temp+2
+    .checksum_stored = zp_temp+4
+    .checksum = zp_temp+6
+    .endptr = zp_temp+2 ; after .maxsize
+
     ; initialize checksum calculation
     lda #$ab
     sta .checksum+0
     lda #$cd
     sta .checksum+1
-
-    ; turn motor on
-    lda $1
-    and #$df
-    sta $1
 
     ; store buffer pointer
     lda stack+2, x
@@ -1812,6 +1935,12 @@ code_tape_read:
     sta .maxsize+1
 
     jsr .sync
+
+    dex
+    ; at this point we have (so far unwritten):
+    ; stack+0 = block size
+    ; stack+2 = block number
+    ; stack+4 = flags
 
     ; read block size
     jsr .get_byte
@@ -1829,19 +1958,23 @@ code_tape_read:
     inx
     inx
     inx
+    inx
     lda #1
     bne .terminate
 .size_ok:
-    ; read block number and checksum
+    ; read block number
     jsr .get_byte
     sta stack+2, x
     jsr .get_byte
     sta stack+3, x
-
+    ; read checksum
     jsr .get_byte
     sta .checksum_stored+0
     jsr .get_byte
     sta .checksum_stored+1
+    ; read flags
+    jsr .get_byte
+    sta stack+4, x
 
     ; compute address of last byte + 1
     clc
@@ -1886,6 +2019,7 @@ code_tape_read:
     inx
     inx
     inx
+    inx
     lda #$2
     bne .terminate
 .success:
@@ -1893,18 +2027,7 @@ code_tape_read:
     lda #0
 .terminate:
     sta stack+0, x
-
-    ; turn screen on
-    lda $d011
-    ora #$10
-    sta $d011
-    ; turn motor off
-    lda $1
-    ora #$20
-    sta $1
-
     rts
-
 
     ; C = 0 (long) or 1 (short) pulse
 .get_pulse:
@@ -1914,7 +2037,7 @@ code_tape_read:
     ldy #$59
 -   bit $dc0d
     beq -
-    lda $dd06 ; $11d9
+    lda $dd06
     sty $dd0f
     cmp #$ff-tape_pulse_threshold
     rts
@@ -1927,11 +2050,6 @@ code_tape_read:
     ror
     bcc -
     eor #$ff
-    rts
-
-.get_block:
-    ; A = number of bytes to read
-    ; zp_temp = address
     rts
 
 .sync:
@@ -1949,6 +2067,7 @@ code_tape_read:
     bne .sync
     rts
     }
+
 
 entry:
     !zone {

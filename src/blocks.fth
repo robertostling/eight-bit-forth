@@ -67,9 +67,13 @@ based on the block number.
   then
   rd-block-page @ 0  1 0 <move-shadow
   false ;
+# code
+( RAM drive utilities )
 : rd-clear ( -- )
   ff for rd-page i 1- @ ?dup
-  if free-page then next ;
+  if free-page then
+  0 rd-page i 1- !
+  next ;
 # doc
 ( RAM drive
 
