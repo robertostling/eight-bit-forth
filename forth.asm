@@ -1847,7 +1847,7 @@ code_rd_tape_read:
     beq .read_next
 
     dex
-    ; lda #0
+    lda #0
     sta stack+0, x
     jmp tape_read_finish
     }

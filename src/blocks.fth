@@ -71,7 +71,7 @@ based on the block number.
 ( RAM drive utilities )
 : rd-clear ( -- )
   ff for rd-page i 1- @ ?dup
-  if free-page then
+  if free-page drop then
   0 rd-page i 1- !
   next ;
 # doc
